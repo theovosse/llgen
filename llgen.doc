@@ -1,0 +1,178 @@
+Korte gebruiksaanwijzing.
+
+Start het programma llgen met als argument een de naam van een file met een
+LL(1)-grammatica (voorkeursprefix .l of .ll), bv.
+
+	llgen [opties] expr.ll
+
+en het resultaat is een file expr.c. Als je een andere outputfile wilt, moet
+je dat expliciet opgeven, bv.
+
+	llgen [opties] expr.ll apelul.cpp
+
+Je kunt aan het programma de volgende opties meegeven:
+
+	+cpp [-cpp is default]
+	-llerror [+llerror is default]
+	-main [+main is default]
+	+stringinput [-stringinput is default]
+	+argv0 [-argv is default]
+	+unicode
+	+noinput
+
+Deze opties selecteren bepaalde stukken uit de skeletfile. Als een
+stuk code daarin omgeven wordt door %{X en %}X (op een aparte regel),
+dan wordt dat stuk gekopieerd als de optie +X is meegegeven (of
+default is, natuurlijk). Als een stuk code omgeven wordt door %{!X en
+%}!X dan wordt het alleen gekopieerd als -X is meegegeven (of default
+is). Zo selecteert +llerror de standaard error- routine (niet zo
+bijzonder). De optie +argv0 is alleen van belang als zowel llerror als
+main geselecteerd zijn, maar niet stringinput: in dat geval wordt bij
+alle foutmeldingen de invoerfilenaam getoond.
+
++main maakt een zelfstandig hoofdprogramma zodat de resulterende code
+gewoon een file leest. -main creeert een aparte van buiten aan te
+roepen routine, die parse_S heet (vul voor S de naam van het
+startsymbool in).
+
++stringinput heeft alleen nut als -main wordt gebruikt. In dat geval
+krijgt de procedure parse_S() als eerste parameter een char*, terwijl
+bij -stringinput de eerste parameter FILE* is. [NB: hier is nog niet
+aan C++ streams gedacht].
+  De externe routine parse_S() ziet er dus als volgt uit:
+	extern void parse_S(FILE *f, param1, param2, ...);
+waarbij param1, ... gekopieerd worden van de parameterlijst van het
+startsymbool.
+
++noinput: Je moet je eigen int GetNextCharacter(LLChar*) meegeven.
+
++unicode: GetNextCharacter verwacht een legale Unicode file als invoer
+(UTF-8, UTF-16 of UCS-4).
+
+De opties die je aan het programma meegeeft, kunt je ook in de grammaticafile
+zelf neerzetten, maar dan zo:
+
+#!main
+#stringinput
+
+Dat is hetzelfde als de commandoregelargumenten -main +stringinput.
+
+Het programma llgen en de file llgen.skel moeten in dezelfde directory staan.
+
+
+De grammatica.
+
+Hier is een simpel voorbeeldje.
+
+	{
+	#include "bint.h"
+	#include "brat.h"
+	
+	typedef bRat<bInt> Val;
+	}
+
+	#!main
+	#stringinput
+
+De stukken tussen accolades worden letterlijk gekopieerd. Als zo'n stuk buiten
+een grammaticaregel wordt aangetroffen wordt het op hoofdniveau in het programma
+geplaatst, anders binnen de procedure die de regel implementeert op precies de
+goede plaats.
+
+	plussym = "+".
+	minussym = "-".
+	timessym = "*".
+	dividesym = "/".
+	lparsym = "(".
+	rparsym = ")".
+	number = "\[0\-9\]\+".
+	IGNORE "\[ \t\n\]".
+
+Symbolen worden gedefinieerd door symboolnaam = "reguliere-expressie". De
+aanhalingstekens zijn verplicht. [Opgave aan de lezer: hoe zet ik aanhalings-
+tekens in mijn reguliere expressie?].
+  Een speciaal geval is IGNORE "regexp" (waarvan er meerdere mogen zijn). Alle
+invoer die hieraan voldoet wordt overgeslagen, maar geldt wel als scheidings-
+teken.
+  In de reguliere expressies moet elk teken dat niet letterlijk geinterpreteerd
+mag worden door een \ voorafgegaan worden, ook het streepje binnen een verzameling
+(dus niet [^A-Za-z] maar \[\^A\-Za\-z\]). Dit om problemen met het gebruik van
+[, ], ^, - en \ binnen een verzameling te voorkomen. Speciale symbolen zijn:
+
+	R\*	nul of meer keer
+	R\+	een of meer keer
+	R\?	nul of een keer
+	\(R\)	groepering
+	R\|R	alternatieven
+	\[...\]	tekenverzameling
+
+Binnen een tekenverzameling zijn \t en \n ook speciale gevallen (tab resp. newline).
+Niet aanwezig zijn dus: ontkenning, intersectie, begin en einde regel.
+
+	identifier = "\[a\-zA\-Z_\]\[a\-zA\-Z_0\-9\]\*".
+	voidSym = "void" KEYWORD identifier.
+	charSym = "char" KEYWORD identifier.
+	shortSym = "short" KEYWORD identifier.
+
+Omdat de scannertabel erg groot kan bij veel keywords die overlappen met andere symbolen
+(zoals "void" overlapt met identifier in het voorbeeld hierboven), is er een speciale
+constructie: symboolnaam = "string" KEYWORD symboolnaam. Er wordt voor deze constructie
+een speciale symbooltabel gegenereerd die eerst geinspecteerd wordt na herkenning van
+bv. identifier. In dit geval kunnen "void", "char" en "short" dus nooit als identifier
+herkend worden.
+
+	/* s: { Val val; }, (expr<val>, { cout << val << endl; }) CHAIN "\[\n\]". */
+
+Commentaar staat tussen /* en */.
+
+Het startsymbool is de linkerkant van de eerste grammaticaregel.
+
+	expr<class bRat<bInt>& res>:
+		{ Val lVal; },
+		factor<res>,
+		(  plussym,  factor<lVal>, { res += lVal; };
+		   minussym, factor<lVal>, { res -= lVal; }
+		) SEQUENCE OPTION.
+	
+Een grammaticaregel bestaat dus uit een naam, eventueel parameters, een
+dubbele punt, en dan de alternatieven, gescheiden door puntkomma's. De
+parameterlijst van een symbool moet omgeven worden door <...> in plaats
+van ronde haakjes (was teveel werk om goed op te lossen). Voor het start-
+symbool geldt bovendien dat er geen typedef-namen mogen worden gebruikt
+in de parameterlijst. [Is niet echt simpel op te lossen].
+
+	term<Val& res>: lparsym, expr<res>, rparsym;
+			minussym, term<res>, { res = -res; };
+			number, ( { res = (bInt) atoi(lastSymbol); };
+				  { bInt integ = atoi(lastSymbol); },
+				  number,
+				  { bInt numer = atoi(lastSymbol); },
+				  dividesym,
+				  number,
+				  { bInt denom = atoi(lastSymbol); },
+				  { res = bRat<bInt>(integ, numer, denom); } ).
+
+Elk alternatief bestaat uit een reeks termen gescheiden door komma's.
+Zo'n term kan een eindsymbool zijn, of een hulpsymbool (let op het meegeven
+van de goede argumenten), of een groep van alternatieven omgeven door ronde
+haakjes. In EBNF-termen betekent bovenstaand voorbeeld dus:
+
+term -> "(" expr ")"
+term -> "-" term
+term -> number [ number "/" number ]
+
+als [...] staat voor nul of een keer (let op het lege alternatief achter de
+eerste number).
+
+	factor<Val& res>: { bRat<bInt> lVal; },
+			  term<res>,
+			  (  timessym,  term<lVal>, { res *= lVal; };
+			     dividesym, term<lVal>, { res /= lVal; }
+			  ) SEQUENCE OPTION.
+
+Elk van deze termen kan gevolgd worden door SEQUENCE, OPTION of SEQUENCE OPTION
+(betekenend: een of meer keer resp. nul of een keer resp. nul of meer keer de
+voorafgaande term).
+  Een andere mogelijkheid is het gebruik van term1 CHAIN term2. Die is equivalent
+aan term1, (term2, term1) SEQUENCE OPTION. Met name handig voor lijsten, reeksen
+en dergelijke.
