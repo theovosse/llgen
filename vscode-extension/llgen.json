@@ -1,0 +1,282 @@
+{
+  "scopeName": "source.llgen",
+  "name": "llgen",
+  "comment": "LLGen language",
+  "fileTypes": [
+    "ll"
+  ],
+  "foldingStartMarker": "({|\\()\\s*$",
+  "foldingStopMarker": "(}|\\))\\s*$",
+  "patterns": [
+    {
+      "comment": "Block comments",
+      "begin": "/\\*",
+      "end": "\\*/",
+      "captures": {
+        "0": {
+          "name": "comment.llgen"
+        }
+      },
+      "name": "comment.block.llgen"
+    },
+    {
+      "comment": "Line comments",
+      "begin": "//",
+      "beginCaptures": {
+        "0": {
+          "name": "invalid.illegal"
+        }
+      },
+      "end": "$",
+      "name": "invalid.illegal"
+    },
+    {
+      "comment": "capability lines",
+      "begin": "^#",
+      "beginCaptures": {
+        "0": {
+          "name": "documentation.llgen"
+        }
+      },
+      "end": "$",
+      "name": "comment.documentation.llgen"
+    },
+    {
+      "comment": "double quoted literals",
+      "begin": "\"",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.string.begin.llgen"
+        }
+      },
+      "end": "\"",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.string.end.llgen"
+        }
+      },
+      "name": "string.quoted.double.llgen",
+      "patterns": [
+        {
+          "include": "#string_escaped_char"
+        }
+      ]
+    },
+    {
+      "comment": "single quoted strings",
+      "begin": "'",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.string.begin.llgen"
+        }
+      },
+      "end": "'",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.string.end.llgen"
+        }
+      },
+      "name": "string.quoted.double.llgen",
+      "patterns": [
+        {
+          "include": "#string_escaped_char"
+        }
+      ]
+    },
+    {
+      "comment": "regexp",
+      "begin": "/",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.regexp.begin.llgen"
+        }
+      },
+      "end": "/",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.regexp.end.llgen"
+        }
+      },
+      "name": "regexp.llgen",
+      "patterns": [
+        {
+          "include": "#string_escaped_char"
+        }
+      ]
+    },
+    {
+      "comment": "Built-in functions",
+      "match": "\\b(SEQUENCE|OPTION|CHAIN)\\b",
+      "name": "support.function.builtin.llgen"
+    },
+    {
+      "comment": "Floating-point literals",
+      "match": "(\\.\\d+([Ee][-+]\\d+)?i?)\\b|\\b\\d+\\.\\d*(([Ee][-+]\\d+)?i?\\b)?",
+      "name": "constant.numeric.floating-point.llgen"
+    },
+    {
+      "comment": "Integers",
+      "match": "\\b((0x[0-9a-fA-F]+)|(0[0-7]+i?)|(\\d+([Ee]\\d+)?i?)|(\\d+[Ee][-+]\\d+i?))\\b",
+      "name": "constant.numeric.integer.llgen"
+    },
+    {
+      "comment": "Language constants",
+      "match": "\\b(llerror|llwarn)\\b",
+      "name": "constant.language.llgen"
+    },
+    {
+      "include": "#brackets"
+    },
+    {
+      "include": "#delimiters"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#operators"
+    },
+    {
+      "include": "#runes"
+    },
+    {
+      "include": "#storage_types"
+    }
+  ],
+  "repository": {
+    "brackets": {
+      "patterns": [
+        {
+          "match": "\\{|\\}",
+          "name": "punctuation.other.bracket.curly.llgen"
+        },
+        {
+          "match": "\\(|\\)",
+          "name": "punctuation.other.bracket.round.llgen"
+        },
+        {
+          "match": "\\[|\\]",
+          "name": "punctuation.other.bracket.square.llgen"
+        }
+      ]
+    },
+    "delimiters": {
+      "patterns": [
+        {
+          "match": ",",
+          "name": "punctuation.other.comma.llgen"
+        },
+        {
+          "match": "\\.(?!\\.\\.)",
+          "name": "punctuation.other.period.llgen"
+        },
+        {
+          "match": ":(?!=)",
+          "name": "punctuation.other.colon.llgen"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "comment": "Class declaration",
+          "match": "\\b(class)\\b|\"class\"",
+          "name": "keyword.class.llgen"
+        }
+      ]
+    },
+    "string_escaped_char": {
+      "patterns": [
+        {
+          "match": "\\\\([0-7]{3}|[abfnrtv\\\\'\"]|x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8})",
+          "name": "constant.character.escape.llgen"
+        },
+        {
+          "match": "\\\\[^0-7xuUabfnrtv\\'\"]",
+          "name": "invalid.illegal.unknown-escape.llgen"
+        }
+      ]
+    },
+    "variables": {
+      "comment": "First add tests and make sure existing tests still pass when changing anything here!",
+      "patterns": [
+        {
+          "match": "([a-zA-Z_]\\w*(?:,\\s*[a-zA-Z_]\\w*)*)\\s*(=.*)",
+          "captures": {
+            "1": {
+              "patterns": [
+                {
+                  "match": "[a-zA-Z_]\\w*",
+                  "name": "variable.other.assignment.llgen"
+                },
+                {
+                  "include": "#delimiters"
+                }
+              ]
+            },
+            "2": {
+              "patterns": [
+                {
+                  "include": "$self"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "match": "([a-zA-Z_]\\w*(?:,\\s*[a-zA-Z_]\\w*)*)(\\s+[\\*]?[a-zA-Z_]\\w*\\s*)(=.*)",
+          "captures": {
+            "1": {
+              "patterns": [
+                {
+                  "match": "[a-zA-Z_]\\w*",
+                  "name": "variable.other.assignment.llgen"
+                },
+                {
+                  "include": "#delimiters"
+                }
+              ]
+            },
+            "2": {
+              "patterns": [
+                {
+                  "include": "$self"
+                }
+              ]
+            },
+            "3": {
+              "patterns": [
+                {
+                  "include": "$self"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "match": "([a-zA-Z_]\\w*(?:,\\s*[a-zA-Z_]\\w*)*)(\\s+[\\*]?[a-zA-Z_]\\w*\\s*[^=].*)",
+          "captures": {
+            "1": {
+              "patterns": [
+                {
+                  "match": "[a-zA-Z_]\\w*",
+                  "name": "variable.other.declaration.llgen"
+                },
+                {
+                  "include": "#delimiters"
+                }
+              ]
+            },
+            "2": {
+              "patterns": [
+                {
+                  "include": "$self"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

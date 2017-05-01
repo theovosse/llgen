@@ -1,0 +1,26 @@
+{
+    "name": "llgen",
+    "displayName": "llgen",
+    "description": "llgen",
+    "version": "0.0.1",
+    "publisher": "theovosse",
+    "engines": {
+        "vscode": "^1.0.0"
+    },
+    "categories": [
+        "Languages"
+    ],
+    "contributes": {
+        "languages": [{
+            "id": "llgen",
+            "aliases": ["LLGen"],
+            "extensions": [".ll"],
+            "configuration": "llgen.configuration.json"
+        }],
+        "grammars": [{
+            "language": "llgen",
+            "scopeName": "source.llgen",
+            "path": "llgen.json"
+        }]
+    }
+}
