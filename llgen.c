@@ -22,9 +22,12 @@
 #include "regexp.h"
 #include "lang.h"
 
+
+// TODO: if (HasProperty("regexpcontext")) {
+
 void PrintRule2(FILE *f, Node rule);
 void PrintRule(FILE *f, Name lhs, Node rule);
-static void PrintAlternatives(NodeList rules, TREE follow, TREE oneOf, int indent, const char *errormsg, const char *errorargs, Boolean generateCode, TREE firstNext, Boolean *usesLA);
+static void PrintAlternatives(NodeList rules, TREE follow, TREE oneOf, int indent, const char *errormsg, const char *errorargs, Boolean generateCode, TREE firstNext, Boolean *usesLA, int startLineNr);
 extern int yywrap();
 
 static TREE idTree = NULL;
@@ -64,6 +67,7 @@ int nrBitsInElement = 8;
 static char* baseName = "parser";
 static const char* packageName = "main";
 int globalIndent = 0;
+
 char *MakeString(char *str) {
 	char *copy = mmalloc(strlen(str) + 1);
 
@@ -125,8 +129,28 @@ static void closeFunctionDeclaration(FILE *f) {
     targetLanguage->endFunctionDeclaration(f);
 }
 
-static void openFunctionCall(FILE *f, const char* functionName, Node argList, Name returnType, Name assignTo) {
+int nrParameters(Node argList) {
 	int level = 0;
+	int nrParameters = argList == NULL? 0: 1;
+
+	for (Node nPtr = argList; nPtr != NULL; nPtr = nPtr->next) {
+        const char *str = (const char *) nPtr->element.name;
+        if (strcmp(str, ",") == 0 && level == 0) {
+			nrParameters++;
+        } else {
+            if (strcmp(str, "{") == 0 || strcmp(str, "(") == 0 || strcmp(str, "[") == 0) {
+                level++;
+            } else if (strcmp(str, "}") == 0 || strcmp(str, ")") == 0 || strcmp(str, "]") == 0) {
+                level--;
+            }
+        }
+	}
+	return nrParameters;
+}
+
+static int openFunctionCall(FILE *f, const char* functionName, Node argList, Name returnType, Name assignTo) {
+	int level = 0;
+	int nrParameters = argList == NULL? 0: 1;
 
     fputs(targetLanguage->owner, outputFile);
     targetLanguage->startFunctionCall(f, functionName, returnType == NULL? NULL: returnType->name, assignTo == NULL? NULL: assignTo->name);
@@ -138,6 +162,7 @@ static void openFunctionCall(FILE *f, const char* functionName, Node argList, Na
 		}
         if (strcmp(str, ",") == 0 && level == 0) {
             targetLanguage->nextCallParameter(f);
+			nrParameters++;
         } else {
             targetLanguage->nextCallParameterSymbol(f, str);
             if (strcmp(str, "{") == 0 || strcmp(str, "(") == 0 || strcmp(str, "[") == 0) {
@@ -147,10 +172,59 @@ static void openFunctionCall(FILE *f, const char* functionName, Node argList, Na
             }
         }
 	}
+	return nrParameters;
 }
 
 static void closeFunctionCall(FILE *f) {
     targetLanguage->endFunctionCall(f);
+}
+
+static int IntCmp(void *k1, void *k2) {
+	return (k1 < k2? -1: k1 == k2? 0: 1);
+}
+
+static void printTokenSet(FILE *f, TREE tokenSet) {
+	TREE node;
+	int lastBoundary = 0;
+	unsigned long int cValue = 0;
+	TREE tokens = NULL;
+
+	for (node = GetFirstNode(tokenSet); node != NULL; node = GetNextNode(node)) {
+		Name name = (Name) GetKey(node);
+		long int tokenIndex = name->index;
+		if (tokenIndex == -1) tokenIndex = 0;
+		InsertNodeSingle(&tokens, (void *) tokenIndex, NULL, IntCmp);
+	}
+	node = GetFirstNode(tokens);
+	while (lastBoundary <= nodeNumber) {
+		if (node != NULL) {
+			int tokenIndex = (int) GetKey(node);
+			while (tokenIndex >= lastBoundary + nrBitsInElement) {
+				fprintf(f, "0x%0*lX", (nrBitsInElement + 3) / 4, cValue);
+				cValue = 0;
+				lastBoundary += nrBitsInElement;
+				if (lastBoundary <= nodeNumber) {
+					fputs(", ", f);
+				}
+			}
+			cValue |= 1 << (tokenIndex - lastBoundary);
+			node = GetNextNode(node);
+		} else {
+			fprintf(f, "0x%0*lX", (nrBitsInElement + 3) / 4, cValue);
+			cValue = 0;
+			lastBoundary += nrBitsInElement;
+			if (lastBoundary <= nodeNumber) {
+				fputs(", ", f);
+			}
+		}
+	}
+	fprintf(f, "%s%s /*", targetLanguage->endOfArrayLiteral, targetLanguage->terminateDeclaration);
+	for (node = GetFirstNode(tokenSet); node != NULL; node = GetNextNode(node)) {
+		Name name = (Name) GetKey(node);
+		fprintf(f, " %s", name->name);
+	}
+	fputs(" */\n", f);
+	KillTree(tokens, NULL);
 }
 
 static void InterpretLine(char *str) {
@@ -189,6 +263,12 @@ static void InterpretLine(char *str) {
                             fprintf(outputFile, "0x%0*lX", (nrBitsInElement + 3) / 4, (1L << pos));
                         }
                         break;
+                    case 'F': {
+                            str++;
+                            fputs(targetLanguage->startOfArrayLiteral, outputFile);
+							printTokenSet(outputFile, startSymbol->first);
+						}
+						break;
                     default:
                         fprintf(stderr, "Illegal code in skeleton file: %s\n", str - 1);
                         break;
@@ -301,6 +381,7 @@ Name MakeName(char *str, int index, NameType nameType, short int lineNr) {
 	name->keywords = NULL;
 	name->usesLA = false;
 	name->functions = NULL;
+	name->nrParameters = 0;
 	return (name);
 }
 
@@ -379,23 +460,18 @@ void Function(Name name, Name fun, Name ident) {
 	}
 }
 
-Node MakeNode(short int lineNr, NodeType nodeType, void *element, Node next)
-{
+Node MakeNode(short int lineNr, NodeType nodeType, void *element, Node next) {
 	Node node;
 
-	if (oldNodes == NULL)
-	{
+	if (oldNodes == NULL) {
 		node = (Node) mmalloc(sizeof(struct Node));
-	}
-	else
-	{
+	} else {
 		node = oldNodes;
 		oldNodes = oldNodes->next;
 	}
 	node->nodeType = nodeType;
 	node->arglist = NULL;
-	switch (nodeType)
-	{
+	switch (nodeType) {
 		case single: node->element.name = element; break;
 		case option: node->element.sub = element; break;
 		case sequence: node->element.sub = element; break;
@@ -406,6 +482,7 @@ Node MakeNode(short int lineNr, NodeType nodeType, void *element, Node next)
 	node->lineNr = lineNr;
 	node->next = next;
 	node->preferShift = false;
+	node->empty = false;
 	node->assignTo = NULL;
 	return (node);
 }
@@ -416,7 +493,67 @@ NodeList MakeNodeList(Node first, NodeList rest)
 
 	nodeList->first = first;
 	nodeList->rest = rest;
+	nodeList->empty = false;
 	return (nodeList);
+}
+
+NodeList appendNodeList(NodeList list, NodeList app) {
+	if (list == NULL) {
+		return app;
+	} else {
+		NodeList ptr = list;
+		while (ptr->rest != NULL) {
+			ptr = ptr->rest;
+		}
+		ptr->rest = app;
+		return list;
+	}
+}
+
+static Boolean nodeContainsGrammarSymbol(Node node) {
+	while (node != NULL) {
+		switch (node->nodeType) {
+			case single:
+				if (node->element.name->nameType != code && node->element.name->nameType != output) {
+					return true;
+				}
+				break;
+			case option:
+				if (nodeContainsGrammarSymbol(node->element.sub)) {
+					return true;
+				}
+				break;
+			case sequence:
+				if (nodeContainsGrammarSymbol(node->element.sub)) {
+					return true;
+				}
+				break;
+			case chain:
+				if (nodeContainsGrammarSymbol(node->element.sub->element.sub) ||
+					  nodeContainsGrammarSymbol(node->element.sub->next->element.sub)) {
+					return true;
+				}
+			case alternative:
+				if (containsGrammarSymbol(node->element.alternatives)) {
+					return true;
+				}
+				break;
+		}
+		node = node->next;
+	}
+	return false;
+}
+
+Boolean containsGrammarSymbol(NodeList list) {
+	NodeList ptr = list;
+
+	while (ptr != NULL) {
+		if (nodeContainsGrammarSymbol(ptr->first)) {
+			return true;
+		}
+		ptr = ptr->rest;
+	}
+	return false;
 }
 
 Node AppendNode(Node node1, Node node2)
@@ -435,57 +572,107 @@ Node AppendNode(Node node1, Node node2)
 	return (ret);
 }
 
-static Boolean DetermineEmptyRule(Node rule)
-{
-	Boolean empty;
-	NodeList rules;
+/*
+ * Returns true when a rule is empty, but also reorders alternatives so that an
+ * empty alternative will go to the end. That generates slightly nicer code by
+ * making the empty alternative unconditional, which also avoids a problem with
+ * checking first vs follow.`
+ */
+static Boolean determineEmptyRule(Node rule) {
+	Boolean empty = true, firstPrinted;
+	NodeList* rules, emptyRule;
 
-	for (empty = true; empty && rule != NULL; rule = rule->next)
-	{
-		switch (rule->nodeType)
-		{
+	if (rule == NULL || rule->empty) {
+		return true;
+	}
+	for (Node ptr = rule; ptr != NULL; ptr = ptr->next) {
+		switch (ptr->nodeType) {
 			case single: /* Only if identifier produces empty, not if string; ignore code and output */
-				empty = (rule->element.name->nameType == identifier && rule->element.name->empty) ||
-						rule->element.name->nameType == output || rule->element.name->nameType == code;
+				if (!((ptr->element.name->nameType == identifier && ptr->element.name->empty) ||
+					  ptr->element.name->nameType == output ||
+					  ptr->element.name->nameType == code)) {
+					empty = false;
+				}
 				break;
 			case option: /* Bien sure */
-				empty = true;
 				break;
 			case sequence: /* Only if subpart is empty */
-				empty = DetermineEmptyRule(rule->element.sub);
+				if (!determineEmptyRule(ptr->element.sub)) {
+					empty = false;
+				}
 				break;
 			case chain: /* Only if first part of chain is empty, second doesn't matter */
-				empty = DetermineEmptyRule(rule->element.sub->element.sub);
+				if (!determineEmptyRule(ptr->element.sub->element.sub)) {
+					empty = false;
+				}
 				break;
 			case alternative: /* Only if one of the alternatives is empty */
-				empty = false;
-				for (rules = rule->element.alternatives; !empty && rules != NULL; rules = rules->rest)
-				{
-					empty = DetermineEmptyRule(rules->first);
+				firstPrinted = false;
+				rules = &ptr->element.alternatives;
+				emptyRule = NULL;
+				if (!ptr->element.alternatives->empty) {
+					while (*rules != NULL) {
+						if (determineEmptyRule((*rules)->first)) {
+							if (emptyRule != NULL) {
+								if (!firstPrinted) {
+									if (emptyRule->first != NULL) {
+										fprintf(stderr, "%s:%d:error: more than one empty alternative\n",
+												inputFileName, emptyRule->first->lineNr);
+									} else {
+										fprintf(stderr, "%s:%d:error: more than one empty alternative following this line\n",
+												inputFileName, ptr->lineNr);
+									}
+									firstPrinted = true;
+								}
+								if ((*rules)->first != NULL) {
+									fprintf(stderr, "%s:%d:error: and here\n",
+											inputFileName, (*rules)->first->lineNr);
+								} else {
+									fprintf(stderr, "%s:%d:error: and following this line\n",
+											inputFileName, ptr->lineNr);
+								}
+								notLLError = true;
+								rules = &(*rules)->rest;
+							} else {
+								// Take this out of the list and move it to the end
+								emptyRule = *rules;
+								*rules = emptyRule->rest;
+								emptyRule->rest = NULL;
+							}
+						} else {
+							rules = &(*rules)->rest;
+						}
+					}
+					if (emptyRule != NULL) {
+						// Reorder such that emptyRule goes to the end.
+						*rules = emptyRule;
+						ptr->element.alternatives->empty = true;
+					} else {
+						empty = false;
+					}
 				}
 				break;
 			default:
-				fprintf(stderr, "DetermineEmptyRule: unknown nodetype %d\n", rule->nodeType);
-				return (empty);
+				fprintf(stderr, "determineEmptyRule: unknown nodetype %d\n", ptr->nodeType);
+				return empty;
 		}
 	}
-	return (empty);
+	rule->empty = empty;
+	return empty;
 }
 
-static void DetermineEmpty(Name name)
-{
+static void determineEmpty(Name name) {
 	NodeList rules = name->rules;
 	Boolean empty = false;
 
-	if (!name->empty && name->nameType == identifier)
-	{
-		while (!empty && rules != NULL)
-		{
-			empty = DetermineEmptyRule(rules->first);
+	if (!name->empty && name->nameType == identifier) {
+		while (rules != NULL) {
+			if (determineEmptyRule(rules->first)) {
+				empty = true;
+			}
 			rules = rules->rest;
 		}
-		if (empty)
-		{
+		if (empty) {
 			name->empty = true;
 			changes = true;
 		}
@@ -684,7 +871,7 @@ static void PrintStateTransitionEnd(FILE* f) {
     targetLanguage->stateTransitionEnd(f);
 }
 
-static Boolean CollectFirst(TREE *firsts, TREE follow, Node rule) {
+static Boolean collectFirst(TREE *firsts, TREE follow, Node rule) {
 	NodeList rules;
 	Boolean empty = true;
 	TREE sym;
@@ -706,27 +893,27 @@ static Boolean CollectFirst(TREE *firsts, TREE follow, Node rule) {
 				}
 				break;
 			case option:
-				(void) CollectFirst(firsts, NULL, rule->element.sub);
+				(void) collectFirst(firsts, NULL, rule->element.sub);
 				break;
 			case sequence:
-				empty = CollectFirst(firsts, NULL, rule->element.sub);
+				empty = collectFirst(firsts, NULL, rule->element.sub);
 				break;
 			case chain:
-				empty = CollectFirst(firsts, NULL, rule->element.sub->element.sub);
+				empty = collectFirst(firsts, NULL, rule->element.sub->element.sub);
 				if (empty) /* Now also inspect the other chain part, but it remains empty */ {
-					(void) CollectFirst(firsts, NULL, rule->element.sub->next->element.sub);
+					(void) collectFirst(firsts, NULL, rule->element.sub->next->element.sub);
 				}
 				break;
 			case alternative: /* Try each one... */
 				empty = false;
 				for (rules = rule->element.alternatives; rules != NULL; rules = rules->rest) {
-					if (CollectFirst(firsts, NULL, rules->first)) {
+					if (collectFirst(firsts, NULL, rules->first)) {
 						empty = true;
 					}
 				}
 				break;
 			default:
-				fprintf(stderr, "CollectFirst: unknown nodetype %d\n", rule->nodeType);
+				fprintf(stderr, "collectFirst: unknown nodetype %d\n", rule->nodeType);
 				return (empty);
 		}
 		rule = rule->next;
@@ -737,18 +924,15 @@ static Boolean CollectFirst(TREE *firsts, TREE follow, Node rule) {
 	return empty;
 }
 
-static void DetermineFirst(Name name)
-{
+static void DetermineFirst(Name name) {
 	NodeList rules = name->rules;
 	TREE firsts = NULL;
 
-	while (rules != NULL)
-	{
-		(void) CollectFirst(&firsts, NULL, rules->first);
+	while (rules != NULL) {
+		(void) collectFirst(&firsts, NULL, rules->first);
 		rules = rules->rest;
 	}
-	if (Unite(&name->first, firsts))
-	{
+	if (Unite(&name->first, firsts)) {
 		changes = true;
 	}
 	KillTree(firsts, NULL);
@@ -767,7 +951,7 @@ static void DetermineFollowRule(TREE *follow, Node rule, Name orig, TREE followe
 		if (rule->nodeType != single || rule->element.name == orig)
 		{
 			nFollowers = NULL;
-			(void) CollectFirst(&nFollowers, followers, rule->next);
+			(void) collectFirst(&nFollowers, followers, rule->next);
 			switch (rule->nodeType)
 			{
 				case single: /* && rule->element.name == orig */
@@ -781,7 +965,7 @@ static void DetermineFollowRule(TREE *follow, Node rule, Name orig, TREE followe
 					break;
 				case sequence:
                     sequenceFirstsAndFollowers = NULL;
-                    (void) CollectFirst(&sequenceFirstsAndFollowers, NULL, rule->element.sub);
+                    (void) collectFirst(&sequenceFirstsAndFollowers, NULL, rule->element.sub);
                     Unite(&sequenceFirstsAndFollowers, nFollowers);
 					DetermineFollowRule(follow, rule->element.sub, orig, sequenceFirstsAndFollowers);
                     KillTree(sequenceFirstsAndFollowers, NULL);
@@ -792,9 +976,9 @@ static void DetermineFollowRule(TREE *follow, Node rule, Name orig, TREE followe
 						FOLLOW(B) = FIRST(A) + (EMPTY(A)? FIRST(B) + nFollowers: EMPTY) */
 					chain1Followers = NULL;
 					chain2Followers = NULL;
-					(void) CollectFirst(&chain2Followers, nFollowers, rule->element.sub->element.sub);
+					(void) collectFirst(&chain2Followers, nFollowers, rule->element.sub->element.sub);
 					/* chain2Followers = FIRST(A) + (EMPTY(A)? nFollowers: EMPTY) */
-					(void) CollectFirst(&chain1Followers, chain2Followers, rule->element.sub->next->element.sub);
+					(void) collectFirst(&chain1Followers, chain2Followers, rule->element.sub->next->element.sub);
 					/* chain1Followers = FIRST(B) + (EMPTY(B)? chain2Followers: EMPTY) */
 					(void) Unite(&chain1Followers, nFollowers);
 					/* chain1Followers = nFollowers + FIRST(B) + ... */
@@ -803,11 +987,11 @@ static void DetermineFollowRule(TREE *follow, Node rule, Name orig, TREE followe
 					KillTree(chain2Followers, NULL);
 					chain1Followers = NULL;
 					chain2Followers = NULL;
-					(void) CollectFirst(&chain2Followers, NULL, rule->element.sub->next->element.sub);
+					(void) collectFirst(&chain2Followers, NULL, rule->element.sub->next->element.sub);
 					/* chain2Followers = FIRST(B) */
 					(void) Unite(&chain2Followers, nFollowers);
 					/* chain2Followers = FIRST(B) + nFollowers */
-					(void) CollectFirst(&chain1Followers, chain2Followers, rule->element.sub->element.sub);
+					(void) collectFirst(&chain1Followers, chain2Followers, rule->element.sub->element.sub);
 					/* chain1Followers = FIRST(A) + (EMPTY(A)? chain2Followers: EMPTY) */
 					DetermineFollowRule(follow, rule->element.sub->next->element.sub, orig, chain1Followers);
 					KillTree(chain1Followers, NULL);
@@ -828,56 +1012,45 @@ static void DetermineFollowRule(TREE *follow, Node rule, Name orig, TREE followe
 	}
 }
 
-static void DetermineFollow(Name name)
-{
+static void DetermineFollow(Name name) {
 	TREE sym;
 	Name lhs;
 	NodeList rules;
 
-	if (name->nameType == identifier)
-	{
-		for (sym = GetFirstNode(idTree); sym != NULL; sym = GetNextNode(sym))
-		{
+	if (name->nameType == identifier) {
+		for (sym = GetFirstNode(idTree); sym != NULL; sym = GetNextNode(sym)) {
 			lhs = GetKey(sym);
-			for (rules = lhs->rules; rules != NULL; rules = rules->rest)
-			{
+			for (rules = lhs->rules; rules != NULL; rules = rules->rest) {
 				DetermineFollowRule(&name->follow, rules->first, name, lhs->follow);
 			}
 		}
 	}
 }
 
-static void ComputeEmptyFirstFollow(void)
-{
+static void ComputeEmptyFirstFollow(void) {
 	TREE sym;
 
 	/* Compute empty productions */	
-	do
-	{
+	do {
 		changes = false;
-		for (sym = GetFirstNode(idTree); sym != NULL; sym = GetNextNode(sym))
-		{
-			DetermineEmpty(GetKey(sym));
+		for (sym = GetFirstNode(idTree); sym != NULL; sym = GetNextNode(sym)) {
+			determineEmpty(GetKey(sym));
 		}
 	}
 	while (changes);
 	/* Compute first sets */
-	do
-	{
+	do {
 		changes = false;
-		for (sym = GetFirstNode(idTree); sym != NULL; sym = GetNextNode(sym))
-		{
+		for (sym = GetFirstNode(idTree); sym != NULL; sym = GetNextNode(sym)) {
 			DetermineFirst(GetKey(sym));
 		}
 	}
 	while (changes);
 	/* Compute follow sets */
 	(void) InsertElement(&startSymbol->follow, endOfInput);
-	do
-	{
+	do {
 		changes = false;
-		for (sym = GetFirstNode(idTree); sym != NULL; sym = GetNextNode(sym))
-		{
+		for (sym = GetFirstNode(idTree); sym != NULL; sym = GetNextNode(sym)) {
 			DetermineFollow(GetKey(sym));
 		}
 	}
@@ -1005,11 +1178,6 @@ static int TokenSetCmp(void *tSet1, void *tSet2)
 		tokenSet2 = tokenSet2->next;
 	}
 	return (tokenSet1 != NULL? 1: tokenSet2 != NULL? -1: 0);
-}
-
-static int IntCmp(void *k1, void *k2)
-{
-	return (k1 < k2? -1: k1 == k2? 0: 1);
 }
 
 static void CreateTokenSet(FILE *f, ESet tokenSet)
@@ -1393,17 +1561,13 @@ static void CompileScanner(void)
 	MinimizeDFA(dfa);
 }
 
-void PrintRule2(FILE *f, Node rule)
-{
+void PrintRule2(FILE *f, Node rule) {
 	NodeList rules;
 
-	while (rule != NULL)
-	{
-		switch (rule->nodeType)
-		{
+	while (rule != NULL) {
+		switch (rule->nodeType) {
 			case single:
-				switch (rule->element.name->nameType)
-				{
+				switch (rule->element.name->nameType) {
 					case code: fprintf(f, " { %s }", rule->element.name->name); break;
 					default: fprintf(f, " %s", rule->element.name->name); break;
 				}
@@ -1427,13 +1591,11 @@ void PrintRule2(FILE *f, Node rule)
 				break;
 			case alternative: /* Try each one... */
 				fputs("(", f);
-				for (rules = rule->element.alternatives; rules != NULL; rules = rules->rest)
-				{
+				for (rules = rule->element.alternatives; rules != NULL; rules = rules->rest) {
 					fputs("(", f);
 					PrintRule2(f, rules->first);
 					fputs(")", f);
-					if (rules->rest != NULL)
-					{
+					if (rules->rest != NULL) {
 						fputs(";", f);
 					}
 				}
@@ -1444,29 +1606,24 @@ void PrintRule2(FILE *f, Node rule)
 				return;
 		}
 		rule = rule->next;
-		if (rule != NULL)
-		{
+		if (rule != NULL) {
 			fputs(",", f);
 		}
 	}
 }
 
-void PrintRule(FILE *f, Name lhs, Node rule)
-{
+void PrintRule(FILE *f, Name lhs, Node rule) {
 	fprintf(f, "%s:", lhs->name);
 	PrintRule2(f, rule);
 	fputs(".\n", f);
 }
 
-static void PrintTree(FILE *f, TREE set)
-{
+static void PrintTree(FILE *f, TREE set) {
 	set = GetFirstNode(set);
-	while (set != NULL)
-	{
+	while (set != NULL) {
 		fprintf(f, "%s", ((Name) GetKey(set))->name);
 		set = GetNextNode(set);
-		if (set != NULL)
-		{
+		if (set != NULL) {
 			fputs(", ", f);
 		}
 	}
@@ -1474,8 +1631,7 @@ static void PrintTree(FILE *f, TREE set)
 
 static int tabWidth = 4;
 
-static void PrintCode(char *str, NameType prev, NameType next, int indent)
-{
+static void PrintCode(char *str, NameType prev, NameType next, int indent) {
 	int prefixLength = 0;
 	char *sstr = str;
 	int length;
@@ -1550,9 +1706,6 @@ static void TokenSetName2(TREE tokenSet) {
 static void CreateTokenSet2(FILE *f, TREE tokenSet)
 {
 	TREE node = FindNode(tokenSets2, tokenSet, TokenSetCmp2);
-	int lastBoundary = 0;
-	unsigned long int cValue = 0;
-	TREE tokens = NULL;
 
 	if (node == NULL)
 	{
@@ -1560,45 +1713,7 @@ static void CreateTokenSet2(FILE *f, TREE tokenSet)
 		InsertNodeSingle(&tokenSets2, CopyTree(tokenSet, NULL, NULL), (void *) tokenSetNr, TokenSetCmp2);
         targetLanguage->arrayDeclaration(f, "static", targetLanguage->tokenSetType,
                                          "llTokenSet", tokenSetNr, (nodeNumber + 1) / nrBitsInElement + 1, true);
-		for (node = GetFirstNode(tokenSet); node != NULL; node = GetNextNode(node))
-		{
-			Name name = (Name) GetKey(node);
-			long int tokenIndex = name->index;
-			if (tokenIndex == -1) tokenIndex = 0;
-			InsertNodeSingle(&tokens, (void *) tokenIndex, NULL, IntCmp);
-		}
-        node = GetFirstNode(tokens);
-        while (lastBoundary <= nodeNumber) {
-            if (node != NULL) {
-                int tokenIndex = (int) GetKey(node);
-                while (tokenIndex >= lastBoundary + nrBitsInElement)
-                {
-                    fprintf(f, "0x%0*lX", (nrBitsInElement + 3) / 4, cValue);
-                    cValue = 0;
-                    lastBoundary += nrBitsInElement;
-                    if (lastBoundary <= nodeNumber) {
-                        fputs(", ", f);
-                    }
-                }
-                cValue |= 1 << (tokenIndex - lastBoundary);
-                node = GetNextNode(node);
-            } else {
-                fprintf(f, "0x%0*lX", (nrBitsInElement + 3) / 4, cValue);
-                cValue = 0;
-                lastBoundary += nrBitsInElement;
-                if (lastBoundary <= nodeNumber) {
-                    fputs(", ", f);
-                }
-            }
-		}
-		fprintf(f, "%s%s /*", targetLanguage->endOfArrayLiteral, targetLanguage->terminateDeclaration);
-		for (node = GetFirstNode(tokenSet); node != NULL; node = GetNextNode(node))
-		{
-			Name name = (Name) GetKey(node);
-            fprintf(f, " %s", name->name);
-		}
-        fputs(" */\n", f);
-		KillTree(tokens, NULL);
+		printTokenSet(f, tokenSet);
 	}
 }
 
@@ -1663,8 +1778,12 @@ static void PrintFirstSymbols(TREE ofirsts, TREE oneOf, void (*cond)(Boolean, in
         fputs(")", outputFile);
         cond(false, indent);
 		if (common == NULL || (symbols != NULL && NotEmptyIntersection(*symbols, common))) {
-			fputs(" /* Not an LL(1)-grammar */", outputFile);
-			yyerror("not an LL(1)-grammar\n");
+			TREE intersection = Intersection(*symbols, common);
+			fputs(" /* Not an LL(1)-grammar: first symbols ", outputFile);
+			PrintTree(outputFile, intersection);
+			fputs(" */", outputFile);
+			KillTree(intersection, NULL);
+			fprintf(stderr, "%s:%d: not an LL(1)-grammar (first symbols)\n", inputFileName, lineNr);
 			notLLError = true;
 		}
 		if (HasProperty("showfirsts")) {
@@ -1729,21 +1848,24 @@ static void GenerateRule(Node rule, TREE follow, TREE oneOf, int indent, Boolean
 		TREE lFirstNext = NULL;
 		TREE common = NULL;
         TREE sequenceFollowers = NULL;
-		(void) CollectFirst(&followers, follow, rule->next);
-		empty2 = CollectFirst(&lFirstNext, firstNext, rule->next);
+		(void) collectFirst(&followers, follow, rule->next);
+		empty2 = collectFirst(&lFirstNext, firstNext, rule->next);
 		switch (rule->nodeType) {
 			case single:
 				if (rule->element.name->nameType == identifier) {
 					directFollowers = NULL;
 					if (rule->next != NULL) {
-						empty1 = CollectFirst(&directFollowers, firstNext, rule->next->next);
+						empty1 = collectFirst(&directFollowers, firstNext, rule->next->next);
 					}
 					Unite(&directFollowers, lFirstNext);
 					if (generateCode) {
 						RuleResult res = rule->element.name->ruleResult;
 						Name returnType = res == NULL? NULL: res->returnType;
 						doIndent(indent);
-						openFunctionCall(outputFile, rule->element.name->name, rule->arglist, returnType, rule->assignTo);
+						int nrParameters = openFunctionCall(outputFile, rule->element.name->name, rule->arglist, returnType, rule->assignTo);
+						if (nrParameters != rule->element.name->nrParameters) {
+							fprintf(stderr, "%s:%d: error: wrong number of parameters\n", inputFileName, rule->lineNr);
+						}
                         targetLanguage->nextCallParameter(outputFile);
 						if (empty1 || empty2) {
 							if (directFollowers == NULL) {
@@ -1789,23 +1911,25 @@ static void GenerateRule(Node rule, TREE follow, TREE oneOf, int indent, Boolean
 				previous = rule->element.name->nameType;
 				break;
 			case option:
-				empty1 = CollectFirst(&firsts, NULL, rule->element.sub);
+				empty1 = collectFirst(&firsts, NULL, rule->element.sub);
 				CreateGuard(guard, generateCode, true, indent, firsts, false, usesLA);
 				if (empty1) Unite(&firsts, followers);
 				common = Intersection(firsts, oneOf);
 				if (generateCode) {
 					doIndent(indent);
 				}
-				PrintFirstSymbols(firsts, common, ifCondition, indent, true, generateCode, NULL, 0, empty1, usesLA);
+				PrintFirstSymbols(firsts, common, ifCondition, indent, true, generateCode, NULL, rule->lineNr, empty1, usesLA);
 				if (generateCode) {
 					startBlock(indent);
 					overlap = Intersection2(firsts, followers);
 					if (overlap != NULL) {
-						doIndent(indent + 1);
-						fputs("/* Not an LL(1)-grammar */\n", outputFile);
-						fprintf(stderr, "%s:%d: not an LL(1)-grammar\n", inputFileName, rule->lineNr);
+						if (!rule->element.sub->preferShift) {
+							doIndent(indent + 1);
+							fputs("/* Not an LL(1)-grammar (first/followers of option overlaps) */\n", outputFile);
+							fprintf(stderr, "%s:%d: not an LL(1)-grammar (first/followers of option overlap)\n", inputFileName, rule->lineNr);
+							notLLError = true;
+						}
 						KillTree(overlap, NULL);
-						notLLError = true;
 					}
 				}
 				GenerateRule(rule->element.sub, followers, common, indent + 1, generateCode, false, lFirstNext, usesLA);
@@ -1814,7 +1938,7 @@ static void GenerateRule(Node rule, TREE follow, TREE oneOf, int indent, Boolean
 				}
 				break;
 			case sequence:
-				empty1 = CollectFirst(&firsts, NULL, rule->element.sub);
+				empty1 = collectFirst(&firsts, NULL, rule->element.sub);
 				Unite(&lFirstNext, firsts); /* a sequence can be followed by itself */
 				CreateGuard(guard, generateCode, true, indent, firsts, false, usesLA);
 				if (empty1) {
@@ -1833,14 +1957,16 @@ static void GenerateRule(Node rule, TREE follow, TREE oneOf, int indent, Boolean
 				if (generateCode) {
 					overlap = Intersection2(firsts, followers);
 					if (overlap != NULL) {
-						doIndent(indent);
-						fputs("/* Not an LL(1)-grammar */\n", outputFile);
-						fprintf(stderr, "%s:%d: not an LL(1)-grammar\n", inputFileName, rule->lineNr);
+						if (!rule->preferShift) {
+							doIndent(indent);
+							fputs("/* Not an LL(1)-grammar (first/followers of sequence overlap) */\n", outputFile);
+							fprintf(stderr, "%s:%d: not an LL(1)-grammar (first/followers of sequence overlap)\n", inputFileName, rule->lineNr);
+							notLLError = true;
+						}
 						KillTree(overlap, NULL);
-						notLLError = true;
 					}
 				}
-				PrintFirstSymbols(firsts, common, endDoWhileLoop, indent, true, generateCode, NULL, 0, false, usesLA);
+				PrintFirstSymbols(firsts, common, endDoWhileLoop, indent, true, generateCode, NULL, rule->lineNr, false, usesLA);
                 if (sequenceFollowers != firsts) {
                     KillTree(sequenceFollowers, NULL);
                 }
@@ -1851,12 +1977,12 @@ static void GenerateRule(Node rule, TREE follow, TREE oneOf, int indent, Boolean
 				}
 				chain1Followers = NULL;
 				chain2Followers = NULL;
-				(void) CollectFirst(&chain2Followers, followers, rule->element.sub->element.sub);
-				(void) CollectFirst(&chain1Followers, chain2Followers, rule->element.sub->next->element.sub);
+				(void) collectFirst(&chain2Followers, followers, rule->element.sub->element.sub);
+				(void) collectFirst(&chain1Followers, chain2Followers, rule->element.sub->next->element.sub);
 				(void) Unite(&chain1Followers, followers);
 				directFollowers = NULL;
-				if (CollectFirst(&directFollowers, NULL, rule->element.sub->next->element.sub)) {
-					(void) CollectFirst(&directFollowers, NULL, rule->element.sub->element.sub);
+				if (collectFirst(&directFollowers, NULL, rule->element.sub->next->element.sub)) {
+					(void) collectFirst(&directFollowers, NULL, rule->element.sub->element.sub);
 				}
 				(void) Unite(&directFollowers, lFirstNext);
 				GenerateRule(rule->element.sub->element.sub, chain1Followers, idTree, indent + 1, generateCode, true, directFollowers, usesLA);
@@ -1864,21 +1990,23 @@ static void GenerateRule(Node rule, TREE follow, TREE oneOf, int indent, Boolean
 				KillTree(chain1Followers, NULL);
 				KillTree(chain2Followers, NULL);
 				chain1Followers = NULL;
-				(void) CollectFirst(&chain1Followers, followers, rule->element.sub->element.sub);
-				(void) CollectFirst(&firsts, chain1Followers, rule->element.sub->next->element.sub);
+				(void) collectFirst(&chain1Followers, followers, rule->element.sub->element.sub);
+				(void) collectFirst(&firsts, chain1Followers, rule->element.sub->next->element.sub);
 				KillTree(chain1Followers, NULL);
 				if (generateCode) {
 					overlap = Intersection2(firsts, followers);
 					if (overlap != NULL) {
-						doIndent(indent + 1);
-						fputs("/* Not an LL(1)-grammar */\n", outputFile);
-						fprintf(stderr, "%s:%d: not an LL(1)-grammar\n", inputFileName, rule->lineNr);
+						if (!rule->preferShift) {
+							doIndent(indent + 1);
+							fputs("/* Not an LL(1)-grammar (first/followers of chain overlap) */\n", outputFile);
+							fprintf(stderr, "%s:%d: not an LL(1)-grammar (first/followers of chain overlap)\n", inputFileName, rule->lineNr);
+							notLLError = true;
+						}
 						KillTree(overlap, NULL);
-						notLLError = true;
 					}
 					doIndent(indent + 1);
 				}
-				PrintFirstSymbols(firsts, idTree, ifCondition, indent, false, generateCode, NULL, 0, false, usesLA);
+				PrintFirstSymbols(firsts, idTree, ifCondition, indent, false, generateCode, NULL, rule->lineNr, false, usesLA);
 				if (generateCode) {
                     startBlock(indent + 1);
 					breakStatement(indent + 2);
@@ -1886,12 +2014,12 @@ static void GenerateRule(Node rule, TREE follow, TREE oneOf, int indent, Boolean
 				}
 				chain1Followers = NULL;
 				chain2Followers = NULL;
-				(void) CollectFirst(&chain2Followers, NULL, rule->element.sub->next->element.sub);
+				(void) collectFirst(&chain2Followers, NULL, rule->element.sub->next->element.sub);
 				(void) Unite(&chain2Followers, followers);
-				(void) CollectFirst(&chain1Followers, chain2Followers, rule->element.sub->element.sub);
+				(void) collectFirst(&chain1Followers, chain2Followers, rule->element.sub->element.sub);
 				directFollowers = NULL;
-				if (CollectFirst(&directFollowers, NULL, rule->element.sub->element.sub)) {
-					(void) CollectFirst(&directFollowers, NULL, rule->element.sub->next->element.sub);
+				if (collectFirst(&directFollowers, NULL, rule->element.sub->element.sub)) {
+					(void) collectFirst(&directFollowers, NULL, rule->element.sub->next->element.sub);
 					Unite(&directFollowers, lFirstNext);
 				}
 				GenerateRule(rule->element.sub->next->element.sub, chain1Followers, firsts, indent + 1, generateCode, false, directFollowers, usesLA);
@@ -1903,7 +2031,7 @@ static void GenerateRule(Node rule, TREE follow, TREE oneOf, int indent, Boolean
 				}
 				break;
 			case alternative:
-				PrintAlternatives(rule->element.alternatives, followers, oneOf, indent, targetLanguage->errorMsg, targetLanguage->errorArgs, generateCode, lFirstNext, usesLA);
+				PrintAlternatives(rule->element.alternatives, followers, oneOf, indent, targetLanguage->errorMsg, targetLanguage->errorArgs, generateCode, lFirstNext, usesLA, rule->lineNr);
 				break;
 			default:
 				break;
@@ -1917,7 +2045,7 @@ static void GenerateRule(Node rule, TREE follow, TREE oneOf, int indent, Boolean
 	}
 }
 
-static void PrintAlternatives(NodeList pRules, TREE follow, TREE oneOf, int indent, const char *errormsg, const char* errorargs, Boolean generateCode, TREE firstNext, Boolean *usesLA)
+static void PrintAlternatives(NodeList pRules, TREE follow, TREE oneOf, int indent, const char *errormsg, const char* errorargs, Boolean generateCode, TREE firstNext, Boolean *usesLA, int startLineNr)
 {
 	int cnt = 0;
 	TREE firsts = NULL;
@@ -1925,6 +2053,7 @@ static void PrintAlternatives(NodeList pRules, TREE follow, TREE oneOf, int inde
 	TREE symbols = NULL;
 	NodeList rules;
 	Node rule;
+	Boolean printError = true;
 
 	if (pRules == NULL) {
 		yyerror("error in grammar: %s not defined!\n", errormsg);
@@ -1937,40 +2066,62 @@ static void PrintAlternatives(NodeList pRules, TREE follow, TREE oneOf, int inde
 		Boolean empty = false, empty1;
 		for (rules = pRules; rules != NULL; rules = rules->rest) {
 			firsts = NULL;
-			empty1 = CollectFirst(&firsts, follow, rules->first);
-			if (empty1) {
-				if (empty) {
-					if (generateCode) {
-						fputs("/* Not an LL(1)-grammar */\n", outputFile);
-					} else if (rules->first == NULL) {
-						fprintf(stderr, "%s: not an LL(1)-grammar: no rules?\n", inputFileName);
-                    } else {
-						fprintf(stderr, "%s:%d: not an LL(1)-grammar\n", inputFileName, rules->first->lineNr);
+			if (rules->rest != NULL || !(rules->first == NULL || rules->first->empty)) {
+				empty1 = collectFirst(&firsts, follow, rules->first);
+				if (empty1) {
+					if (empty) {
+						if (generateCode) {
+							fputs("/* Not an LL(1)-grammar (more than one empty) */\n", outputFile);
+						} else if (rules->first == NULL) {
+							fprintf(stderr, "%s:%d: error: not an LL(1)-grammar:more than one empty\n", inputFileName, pRules->first->lineNr);
+						} else {
+							fprintf(stderr, "%s:%d: error: not an LL(1)-grammar: more than one empty\n", inputFileName, rules->first->lineNr);
+						}
+						notLLError = true;
+					}
+					empty = true;
+				}
+				if (generateCode) {
+					if (bracesOnNewLine || cnt == 0) {
+						doIndent(indent);
+					} else if (!bracesOnNewLine) {
+						fputs(" ", outputFile);
 					}
 				}
-				empty = true;
-			}
-			if (generateCode) {
-                if (bracesOnNewLine || cnt == 0) {
-                    doIndent(indent);
-                } else if (!bracesOnNewLine) {
-                    fputs(" ", outputFile);
-                }
-			}
-			PrintFirstSymbols(firsts, oneOf, (cnt == 0? ifCondition: elseIfCondition), indent, true, generateCode, &symbols, (rules->first == NULL? 0: rules->first->lineNr), empty1, usesLA);
-			if (generateCode) {
-				startBlock(indent);
-			}
-			common = Intersection(firsts, oneOf);
-			GenerateRule(rules->first, follow, common, indent + 1, generateCode, false, firstNext, usesLA);
-			KillTree(firsts, NULL);
-			KillTree(common, NULL);
-			cnt++;
-			if (generateCode) {
-				terminateBlock(indent);
+				PrintFirstSymbols(firsts, oneOf, (cnt == 0? ifCondition: elseIfCondition), indent, true, generateCode, &symbols, (rules->first == NULL? startLineNr: rules->first->lineNr), empty1, usesLA);
+				if (generateCode) {
+					startBlock(indent);
+				}
+				common = Intersection(firsts, oneOf);
+				GenerateRule(rules->first, follow, common, indent + 1, generateCode, false, firstNext, usesLA);
+				KillTree(firsts, NULL);
+				KillTree(common, NULL);
+				cnt++;
+				if (generateCode) {
+					terminateBlock(indent);
+				}
+			} else {
+				// Don't generate a condition, but always take this path; if there
+				// is a wrong symbol, it will be skipped by the elements.
+				printError = false;
+				if (generateCode) {
+					if (cnt != 0) {
+						if (bracesOnNewLine) {
+							doIndent(indent);
+						} else {
+							fputs(" ", outputFile);
+						}
+						fputs("else", outputFile);
+						startBlock(indent);
+					}
+					GenerateRule(rules->first, follow, NULL, (cnt == 0? indent: indent + 1), generateCode, false, firstNext, usesLA);
+					if (cnt != 0) {
+						terminateBlock(indent);
+					}
+				}
 			}
 		}
-		if (generateCode) {
+		if (generateCode && printError) {
 			if (cnt == 0) {
 				fprintf(stderr, "error in grammar: no alternatives for %s!\n", errormsg);
 				doIndent(indent);
@@ -1997,7 +2148,7 @@ static void CreateTokenSets(Name name, void *dummy)
 
 	if (name->nameType == identifier)
 	{
-		PrintAlternatives(name->rules, name->follow, idTree, 1, name->name, "", false, NULL, &name->usesLA);
+		PrintAlternatives(name->rules, name->follow, idTree, 1, name->name, "", false, NULL, &name->usesLA, name->lineNr);
 	}
 }
 
@@ -2037,7 +2188,7 @@ static void CreateProcs(Name name, void *dummy) {
             doIndent(globalIndent + 1);
             PrintLocalDeclaration(outputFile, llTokenSetTypeString, "ltSet");
 		}
-		PrintAlternatives(name->rules, name->follow, idTree, globalIndent + 1, name->name, "", true, NULL, &dummyLA);
+		PrintAlternatives(name->rules, name->follow, idTree, globalIndent + 1, name->name, "", true, NULL, &dummyLA, name->lineNr);
 		if (returnType != NULL && returnVariable != NULL) {
             doIndent(globalIndent + 1);
             PrintReturnValue(outputFile, returnVariable->name);

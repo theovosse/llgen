@@ -63,6 +63,7 @@ lhs: identifier argumentoption functionreturnoption {
 		$$ = $1;
 		$1->lineNr = lineNumber;
 		$1->arglist = $2;
+		$$->nrParameters = nrParameters($2);
 		$1->ruleResult = $3;
 		if (startSymbol == NULL) {
 			startSymbol = $1;
@@ -114,17 +115,30 @@ alternative: {$$ = MakeNodeList(NULL, NULL); }
 elementlist: element { $$ = $1; }
 	   | element commasym elementlist { $1->next = $3; $$ = $1; }
 
-element: single_element { $$ = $1; }
-       | single_element chainsym single_element
-	 {
-	     $$ = MakeNode(lineNumber, chain, MakeNode(lineNumber, single, $1,
-						 MakeNode(lineNumber, single, $3, NULL)), NULL);
-	 }
-       | single_element_shiftoption optionsym { $$ = MakeNode(lineNumber, option, $1, NULL); }
-       | single_element_shiftoption sequencesym { $$ = MakeNode(lineNumber, sequence, $1, NULL); }
-       | single_element_shiftoption sequencesym optionsym { $$ = MakeNode(lineNumber, option,
-							    MakeNode(lineNumber, sequence, $1, NULL), NULL); }
-       ;
+element:
+	single_element_shiftoption {
+		$$ = $1;
+	} |
+	single_element_shiftoption chainsym single_element {
+		$$ = MakeNode(lineNumber, chain, MakeNode(lineNumber, single, $1,
+						MakeNode(lineNumber, single, $3, NULL)), NULL);
+	} |
+	single_element_shiftoption optionsym {
+		$$ = MakeNode(lineNumber, option, $1, NULL);
+	} |
+	single_element_shiftoption sequencesym {
+		$$ = MakeNode(lineNumber, sequence, $1, NULL);
+	} |
+	single_element_shiftoption sequencesym optionsym {
+		$$ = MakeNode(lineNumber, option, MakeNode(lineNumber, sequence, $1, NULL), NULL);
+		$$->element.sub->preferShift = $1->preferShift;
+	} |
+	codesym {
+		$$ = MakeNode(cLineNumber, single, MakeName(codeBlock, -1, code, cLineNumber), NULL);
+	} |
+	outputsym {
+		$$ = MakeNode(cLineNumber, single, MakeName(codeBlock, -1, output, cLineNumber), NULL);
+	} ;
 
 single_element_shiftoption:
 	single_element {
@@ -135,54 +149,55 @@ single_element_shiftoption:
 		$$->preferShift = true;
 	} ;
 
-single_element: identifier argumentoption functionresultoption
-		{
-		    $$ = MakeNode(lineNumber, single, $1, NULL);
-		    $$->arglist = $2;
-			$$->assignTo = $3;
+single_element:
+	identifier argumentoption functionresultoption {
+		$$ = MakeNode(lineNumber, single, $1, NULL);
+		$$->arglist = $2;
+		$$->assignTo = $3;
+	} |
+	stringsym {
+		$$ = MakeNode(lineNumber, single, $1, NULL);
+	} |
+	lparsym rhs rparsym {
+		$$ = MakeNode(lineNumber, alternative, $2, NULL);
+		if (!containsGrammarSymbol($2)) {
+			/* Allowing only output here would allow writing something like
+			   ( { code }) OPTION, which is meaningless.
+			 */
+			yyerror("cannot group output symbols");
 		}
-	      | stringsym
-		{
-		    $$ = MakeNode(lineNumber, single, $1, NULL);
-		}
-	      | lparsym rhs rparsym
-		{
-		    $$ = MakeNode(lineNumber, alternative, $2, NULL);
-		}
-	      | codesym
-		{
-		    $$ = MakeNode(cLineNumber, single, MakeName(codeBlock, -1, code, cLineNumber), NULL);
-		}
-	      | outputsym
-		{
-		    $$ = MakeNode(cLineNumber, single, MakeName(codeBlock, -1, output, cLineNumber), NULL);
-		};
+	} ;
 
-non_bracket_symbol: singletoken { $$ = MakeNode(nrBlanks, single, MakeString(yytext), NULL); }
-		  | identifiersym { $$ = MakeNode(nrBlanks, single, MakeString(yytext), NULL); }
-		  | colonsym { $$ = MakeNode(nrBlanks, single, MakeString(yytext), NULL); }
-		  | semicolonsym { $$ = MakeNode(nrBlanks, single, MakeString(yytext), NULL); }
-		  | periodsym { $$ = MakeNode(nrBlanks, single, MakeString(yytext), NULL); }
-		  | commasym { $$ = MakeNode(nrBlanks, single, MakeString(yytext), NULL); }
-		  | outputsym { $$ = MakeNode(nrBlanks, single, MakeString(yytext), NULL); }
-		  | stringsym { $$ = MakeNode(nrBlanks, single, MakeString(yytext), NULL); }
-		  | numbersym { $$ = MakeNode(nrBlanks, single, MakeString(yytext), NULL); }
-		  | starsym { $$ = MakeNode(nrBlanks, single, MakeString(yytext), NULL); }
-		  | equalsym { $$ = MakeNode(nrBlanks, single, MakeString(yytext), NULL); }
-		  ;
+non_bracket_symbol:
+	singletoken { $$ = MakeNode(nrBlanks, single, MakeString(yytext), NULL); } |
+	identifiersym { $$ = MakeNode(nrBlanks, single, MakeString(yytext), NULL); } |
+	colonsym { $$ = MakeNode(nrBlanks, single, MakeString(yytext), NULL); } |
+	semicolonsym { $$ = MakeNode(nrBlanks, single, MakeString(yytext), NULL); } |
+	periodsym { $$ = MakeNode(nrBlanks, single, MakeString(yytext), NULL); } |
+	commasym { $$ = MakeNode(nrBlanks, single, MakeString(yytext), NULL); } |
+	outputsym { $$ = MakeNode(nrBlanks, single, MakeString(yytext), NULL); } |
+	stringsym { $$ = MakeNode(nrBlanks, single, MakeString(yytext), NULL); } |
+	numbersym { $$ = MakeNode(nrBlanks, single, MakeString(yytext), NULL); } |
+	starsym { $$ = MakeNode(nrBlanks, single, MakeString(yytext), NULL); } |
+	equalsym { $$ = MakeNode(nrBlanks, single, MakeString(yytext), NULL); } ;
 
-wildcard: non_bracket_symbol { $$ = $1; }
-	| lparsym wildcardsequence rparsym
-	  {
-	      $$ = AppendNode(MakeNode(0, single, MakeString("("), $2),
-	                      MakeNode(0, single, MakeString(")"), NULL));
-	  }
-	| lbracketsym wildcardsequence rbracketsym
-	  {
-	      $$ = AppendNode(MakeNode(0, single, MakeString("["), $2),
-	                      MakeNode(0, single, MakeString("]"), NULL));
-	  }
-	;
+wildcard:
+	non_bracket_symbol {
+		$$ = $1;
+	} |
+	lparsym wildcardsequence rparsym {
+		$$ = AppendNode(MakeNode(0, single, MakeString("("), $2),
+						MakeNode(0, single, MakeString(")"), NULL));
+	} |
+	lbracketsym wildcardsequence rbracketsym {
+		$$ = AppendNode(MakeNode(0, single, MakeString("["), $2),
+						MakeNode(0, single, MakeString("]"), NULL));
+	} ;
 
-wildcardsequence: { $$ = NULL; } |
-		  wildcardsequence wildcard { $$ = AppendNode($1, $2); } ;
+wildcardsequence:
+	{
+		$$ = NULL;
+	} |
+	wildcardsequence wildcard {
+		$$ = AppendNode($1, $2);
+	} ;

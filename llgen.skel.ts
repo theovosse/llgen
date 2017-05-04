@@ -8,6 +8,9 @@ type KeyWordList = {[keyword:string]: number}|undefined;
 %%const endOfInput = %N;
 %%const nrTokens = %N;
 %%const endOfInputSet = [%E]; 
+%{regexpcontext
+%%const inputFirsts: LLTokenSet = %F
+%}regexpcontext
 const llTokenSetSize = Math.floor((nrTokens + 30) / 31);
 let llLineNumber = 1;
 let llLinePosition = 1;
@@ -103,7 +106,12 @@ function waitForToken(set: LLTokenSet, follow: LLTokenSet): void {
     let ltSet: LLTokenSet = uniteTokenSets(set, follow);
 
     while (currSymbol !== endOfInputSet && !tokenInCommon(currSymbol, ltSet)) {
+%{regexpcontext
+        nextSymbol(set, follow);
+%}regexpcontext
+%{!regexpcontext
         nextSymbol();
+%}!regexpcontext
         llerror("token skipped: %s", lastSymbol);
     }
 }
@@ -112,7 +120,28 @@ function memberTokenSet(token: number, set: LLTokenSet): boolean {
     return (set[Math.floor(token / 31)] & (1 << (token % 31))) !== 0;
 }
 
-function NotEmpty(tSet: LLTokenSet): boolean {
+%{regexpcontext
+function makeTokenSet(token: number): LLTokenSet {
+    let set: LLTokenSet = [];
+
+    for (let i = 0; i < llTokenSetSize; i++) {
+        set[i] = 0;
+    }
+    set[Math.floor(token / 31)] = 1 << (token % 31);
+    return set;
+}
+
+function subtract(a: LLTokenSet, b: LLTokenSet): LLTokenSet {
+    let set: LLTokenSet = [];
+
+    for (let i = 0; i < llTokenSetSize; i++) {
+        set[i] = a[i] & ~b[i];
+    }
+    return set;
+}
+
+%}regexpcontext
+function notEmpty(tSet: LLTokenSet): boolean {
     if (tSet[0] > 1)
         return true;
     for (let i = 1; i < tSet.length; i++)
@@ -141,14 +170,26 @@ function lLKeyWord(tokenSet: LLTokenSet): LLTokenSet {
 }
 
 %}keywords
+%{regexpcontext
+function nextSymbol(first: LLTokenSet, follow: LLTokenSet): void
+%}regexpcontext
+%{!regexpcontext
 function nextSymbol(): void
+%}!regexpcontext
 {
     let bufferPos: number;
     let state: localstate = { state: 0 };
-    let recognizedToken: LLTokenSet|undefined = undefined;
     let token: LLTokenSet|undefined;
     let ch: string|undefined;
     let lastNlPos = 0, nlPos = 0;
+%{regexpcontext
+    let recognizedToken: LLTokenSet[] = [];
+    let bufferEnds: number[] = [0, 0];
+    let firstOrFollow = uniteTokenSets(first, follow);
+%}regexpcontext
+%{!regexpcontext
+    let recognizedToken: LLTokenSet|undefined = undefined;
+%}!regexpcontext
 
     /* Copy last recognized symbol into buffer and adjust positions */
     lastSymbol = scanBuffer.slice(0, bufferEnd);
@@ -178,7 +219,17 @@ function nextSymbol(): void
         if (atEOF) {
             state.state = undefined;
         } else if ((token = nextState(state, ch)) !== undefined) {
+%{regexpcontext
+%{keywords
+            token = lLKeyWord(token);
+%}keywords
+            let prio = tokenInCommon(token, firstOrFollow)? 0: 1;
+            recognizedToken[prio] = token;
+            bufferEnds[prio] = bufferPos;
+%}regexpcontext
+%{!regexpcontext
             recognizedToken = token;
+%}!regexpcontext
             bufferEnd = bufferPos;
         }
         if (state.state === undefined) {
@@ -186,10 +237,35 @@ function nextSymbol(): void
                 currSymbol = endOfInputSet;
                 return;
             }
+%{regexpcontext
             if (recognizedToken === undefined) {
                 llerror("Illegal character: '%c'\n", scanBuffer[0]);
                 bufferEnd = 1;
-            } else if (NotEmpty(recognizedToken)) {
+            } else if (recognizedToken[0] !== undefined && notEmpty(recognizedToken[0])) {
+%{keywords
+                currSymbol = lLKeyWord(recognizedToken[0]);
+%}keywords
+%{!keywords
+                currSymbol = recognizedToken[0];
+%}!keywords
+                bufferEnd = bufferEnds[0];
+                return;
+            } else if (recognizedToken[1] !== undefined && notEmpty(recognizedToken[1])) {
+%{keywords
+                currSymbol = lLKeyWord(recognizedToken[1]);
+%}keywords
+%{!keywords
+                currSymbol = recognizedToken[1];
+%}!keywords
+                bufferEnd = bufferEnds[1];
+                return;
+            }
+%}regexpcontext
+%{!regexpcontext
+            if (recognizedToken === undefined) {
+                llerror("Illegal character: '%c'\n", scanBuffer[0]);
+                bufferEnd = 1;
+            } else if (notEmpty(recognizedToken)) {
 %{keywords
                 currSymbol = lLKeyWord(recognizedToken);
 %}keywords
@@ -198,6 +274,7 @@ function nextSymbol(): void
 %}!keywords
                 return;
             }
+%}!regexpcontext
             /* If nothing recognized, continue; no need to copy buffer */
             lastNlPos = nlPos = 0;
             while ((nlPos = scanBuffer.indexOf('\n', nlPos)) != -1 && nlPos < bufferEnd) {
@@ -209,7 +286,13 @@ function nextSymbol(): void
             llLinePosition += bufferEnd - lastNlPos;
             bufferFill -= bufferEnd;
             scanBuffer = scanBuffer.slice(bufferEnd);
+%{regexpcontext
+            recognizedToken = [];
+            bufferEnds = [0, 0];
+%}regexpcontext
+%{!regexpcontext
             recognizedToken = undefined;
+%}!regexpcontext
             state.state = 0;
             bufferEnd = 0;
             bufferPos = 0;
@@ -220,10 +303,18 @@ function nextSymbol(): void
 
 function getToken(token: number, set: LLTokenSet, follow: LLTokenSet): void {
     let ltSet: LLTokenSet = uniteTokenSets(set, follow);
+%{regexpcontext
+    let tokenSet: LLTokenSet = makeTokenSet(token);
+%}regexpcontext
 
     while (currSymbol != endOfInputSet && !memberTokenSet(token, currSymbol) &&
            !tokenInCommon(currSymbol, ltSet)) {
+%{regexpcontext
+        nextSymbol(tokenSet, ltSet);
+%}regexpcontext
+%{!regexpcontext
         nextSymbol();
+%}!regexpcontext
         if (!memberTokenSet(0, currSymbol)) {
             llerror("token skipped: %s", lastSymbol);
         }
@@ -231,7 +322,12 @@ function getToken(token: number, set: LLTokenSet, follow: LLTokenSet): void {
     if (!memberTokenSet(token, currSymbol)) {
         llerror("token expected: %s", tokenName[token]);
     } else {
+%{regexpcontext
+        nextSymbol(set, follow);
+%}regexpcontext
+%{!regexpcontext
         nextSymbol();
+%}!regexpcontext
     }
 }
 
@@ -270,6 +366,18 @@ function getNextCharacter() {
     bufferEnd = 0;
     bufferFill = 0;
     atEOF = false;
+%{regexpcontext
+    nextSymbol(inputFirsts, endOfInputSet);
+%}regexpcontext
+%{!regexpcontext
     nextSymbol();
+%}!regexpcontext
 %%    %S(#S);
-};
+}
+
+%{main
+declare function require(pkg: string): any;
+declare var process: any;
+var fs = require("fs");
+parse(fs.readFileSync(process.argv[2]).toString());
+%}main

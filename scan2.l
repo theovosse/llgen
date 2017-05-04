@@ -149,7 +149,7 @@ int yylex(void)
 								return (codesym);
 						    }
 						}
-<code><<EOF>>           { yyerror("unterminated code"); BEGIN INITIAL; return (codesym); }
+<code><<EOF>>           { yyerror("unterminated code starting at line %d", cLineNumber); BEGIN INITIAL; return codesym; }
 <INITIAL>\{             { clevel = 1; cptr = codeBlock; cLineNumber = lineNumber; BEGIN code; }
 <INITIAL>\/\*           { BEGIN comment; }
 <INITIAL>\*\/           { yyerror("unopened comment"); }
