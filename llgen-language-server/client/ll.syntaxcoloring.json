@@ -1,0 +1,145 @@
+{
+  "scopeName": "source.ll",
+  "name": "LLGen",
+  "comment": "LLGen language",
+  "fileTypes": [
+    "ll"
+  ],
+  "foldingStartMarker": "({|\\()\\s*$",
+  "foldingStopMarker": "(}|\\))\\s*$",
+  "patterns": [
+    {
+      "comment": "Doc comments",
+      "begin": "///",
+      "beginCaptures": {
+        "0": {
+          "name": "comment.documentation.ll"
+        }
+      },
+      "end": "$",
+      "name": "comment.documentation.ll"
+    },
+    {
+      "comment": "Block comments",
+      "begin": "/\\*",
+      "end": "\\*/",
+      "captures": {
+        "0": {
+          "name": "comment.ll"
+        }
+      },
+      "name": "comment.block.ll"
+    },
+    {
+      "comment": "Interpreted string literals",
+      "begin": "\"",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.string.begin.ll"
+        }
+      },
+      "end": "\"",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.string.end.ll"
+        }
+      },
+      "name": "string.quoted.double.ll",
+      "patterns": [
+        {
+          "include": "#string_escaped_char"
+        }
+      ]
+    },
+    {
+      "comment": "Floating-point literals",
+      "match": "(\\.\\d+([Ee][-+]\\d+)?i?)\\b|\\b\\d+\\.\\d*(([Ee][-+]\\d+)?i?\\b)?",
+      "name": "constant.numeric.floating-point.ll"
+    },
+    {
+      "comment": "Integers",
+      "match": "\\b((0x[0-9a-fA-F]+)|(0[0-7]+i?)|(\\d+([Ee]\\d+)?i?)|(\\d+[Ee][-+]\\d+i?))\\b",
+      "name": "constant.numeric.integer.ll"
+    },
+    {
+      "include": "#brackets"
+    },
+    {
+      "include": "#delimiters"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#operators"
+    },
+    {
+      "include": "#variables"
+    }
+  ],
+  "repository": {
+    "brackets": {
+      "patterns": [
+        {
+          "match": "\\{|\\}",
+          "name": "punctuation.other.bracket.curly.ll"
+        },
+        {
+          "match": "\\(|\\)",
+          "name": "punctuation.other.bracket.round.ll"
+        },
+        {
+          "match": "\\[|\\]",
+          "name": "punctuation.other.bracket.square.ll"
+        }
+      ]
+    },
+    "delimiters": {
+      "patterns": [
+        {
+          "match": ",",
+          "name": "punctuation.other.comma.ll"
+        },
+        {
+          "match": "\\.",
+          "name": "punctuation.other.period.ll"
+        },
+        {
+          "match": ":",
+          "name": "punctuation.other.colon.ll"
+        },
+        {
+          "match": ";",
+          "name": "punctuation.other.semicolon.ll"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "comment": "reserved words",
+          "match": "\\b(IGNORE|SEQUENCE|CHAIN|OPTION|SHIFT|SUBTOKEN|KEYWORD)\\b",
+          "name": "keyword.control.ll"
+        }
+      ]
+    },
+    "variables": {
+      "comment": "Grammar symbols",
+      "patterns": [
+        {
+          "match": "[a-zA-Z_][a-zA-Z_0-9]*",
+          "name": "variable.ll"
+        }
+      ]
+    },
+    "operators": {
+      "comment": "Operators",
+      "patterns": [
+          {
+            "match": "->",
+            "name": "keyword.operator.ll"
+          }
+      ]
+    }
+  }
+}

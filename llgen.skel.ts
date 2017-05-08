@@ -62,7 +62,7 @@ export function setInputFileName(fn: string): void {
 }
 let scanBuffer = "";
 let lastSymbol = "";
-let lastSymbolPos = {line: 0, position: 0};
+export let lastSymbolPos = {line: 0, position: 0};
 let bufferEnd = 0;
 let bufferFill = 0;
 let atEOF = false;
@@ -183,7 +183,7 @@ function nextSymbol(): void
     let ch: string|undefined;
     let lastNlPos = 0, nlPos = 0;
 %{regexpcontext
-    let recognizedToken: LLTokenSet[] = [];
+    let recognizedTokens: LLTokenSet[] = [];
     let bufferEnds: number[] = [0, 0];
     let firstOrFollow = uniteTokenSets(first, follow);
 %}regexpcontext
@@ -224,7 +224,7 @@ function nextSymbol(): void
             token = lLKeyWord(token);
 %}keywords
             let prio = tokenInCommon(token, firstOrFollow)? 0: 1;
-            recognizedToken[prio] = token;
+            recognizedTokens[prio] = token;
             bufferEnds[prio] = bufferPos;
 %}regexpcontext
 %{!regexpcontext
@@ -238,24 +238,24 @@ function nextSymbol(): void
                 return;
             }
 %{regexpcontext
-            if (recognizedToken === undefined) {
+            if (recognizedTokens[0] === undefined && recognizedTokens[1] === undefined) {
                 llerror("Illegal character: '%c'\n", scanBuffer[0]);
                 bufferEnd = 1;
-            } else if (recognizedToken[0] !== undefined && notEmpty(recognizedToken[0])) {
+            } else if (recognizedTokens[0] !== undefined && notEmpty(recognizedTokens[0])) {
 %{keywords
-                currSymbol = lLKeyWord(recognizedToken[0]);
+                currSymbol = lLKeyWord(recognizedTokens[0]);
 %}keywords
 %{!keywords
-                currSymbol = recognizedToken[0];
+                currSymbol = recognizedTokens[0];
 %}!keywords
                 bufferEnd = bufferEnds[0];
                 return;
-            } else if (recognizedToken[1] !== undefined && notEmpty(recognizedToken[1])) {
+            } else if (recognizedTokens[1] !== undefined && notEmpty(recognizedTokens[1])) {
 %{keywords
-                currSymbol = lLKeyWord(recognizedToken[1]);
+                currSymbol = lLKeyWord(recognizedTokens[1]);
 %}keywords
 %{!keywords
-                currSymbol = recognizedToken[1];
+                currSymbol = recognizedTokens[1];
 %}!keywords
                 bufferEnd = bufferEnds[1];
                 return;
@@ -287,7 +287,7 @@ function nextSymbol(): void
             bufferFill -= bufferEnd;
             scanBuffer = scanBuffer.slice(bufferEnd);
 %{regexpcontext
-            recognizedToken = [];
+            recognizedTokens = [];
             bufferEnds = [0, 0];
 %}regexpcontext
 %{!regexpcontext

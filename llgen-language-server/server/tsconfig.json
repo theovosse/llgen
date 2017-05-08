@@ -1,0 +1,19 @@
+{
+	"compilerOptions": {
+		"target": "ES6",
+		"module": "commonjs",
+		"moduleResolution": "node",
+		"sourceMap": true,
+		"outDir": "../client/server",
+		"diagnostics": true,
+		"noFallthroughCasesInSwitch": true,
+		"noImplicitAny": true,
+		"noImplicitReturns": true,
+		"noImplicitThis": true,
+		"noUnusedParameters": false,
+		"strictNullChecks": true
+	},
+	"exclude": [
+		"node_modules"
+	]
+}
