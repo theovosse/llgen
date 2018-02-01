@@ -48,6 +48,7 @@ typedef struct Language {
     void (*endFunctionCall)(FILE* f);
     void (*resetFunctionCall)(FILE* f);
     void (*emitParameterDeclaration)(FILE* f);
+    void (*assignLastSymbolTo)(FILE* f, int indent, Name name);
 } Language;
 
 extern Language cLanguage;

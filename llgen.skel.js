@@ -40,7 +40,7 @@ function sprintf(args) {
 exports.sprintf = sprintf;
 
 %{llerror
-function llerror(...) {
+function llerror() {
     var msg = sprintf(arguments);
 
     console.log("llerror " + lastSymbolPos.line + ":" + lastSymbolPos.position + ": " + msg);

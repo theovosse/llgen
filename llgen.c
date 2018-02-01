@@ -27,7 +27,7 @@
 
 void PrintRule2(FILE *f, Node rule);
 void PrintRule(FILE *f, Name lhs, Node rule);
-static void PrintAlternatives(NodeList rules, TREE follow, TREE oneOf, int indent, const char *errormsg, const char *errorargs, Boolean generateCode, TREE firstNext, Boolean *usesLA, int startLineNr);
+static void PrintAlternatives(Name ruleName, NodeList rules, Boolean emptyToEndOfRule, TREE follow, int indent, const char *errormsg, const char *errorargs, Boolean generateCode, TREE firstNext, Boolean *usesLA, int startLineNr);
 extern int yywrap();
 
 static TREE idTree = NULL;
@@ -83,8 +83,7 @@ static Boolean HasProperty(char *property) {
 	}
 }
 
-void AddProperty(char *property)
-{
+void AddProperty(char *property) {
 	if (FindNode(properties, property, (TreeCmp) strcmp) == NULL) {
 		InsertNodeSingle(&properties, MakeString(property), NULL, (TreeCmp) strcmp);
 	}
@@ -148,12 +147,13 @@ int nrParameters(Node argList) {
 	return nrParameters;
 }
 
-static int openFunctionCall(FILE *f, const char* functionName, Node argList, Name returnType, Name assignTo) {
+static int openFunctionCall(FILE *f, const char* functionName, Node argList, Name returnType, Name assignTo, Name ruleName) {
 	int level = 0;
 	int nrParameters = argList == NULL? 0: 1;
+	Boolean assignToRuleOutput = assignTo != NULL && ruleName->ruleResult != NULL && ruleName->ruleResult->returnVariable != NULL && strcmp(assignTo->name, ruleName->ruleResult->returnVariable->name) == 0;
 
     fputs(targetLanguage->owner, outputFile);
-    targetLanguage->startFunctionCall(f, functionName, returnType == NULL? NULL: returnType->name, assignTo == NULL? NULL: assignTo->name);
+    targetLanguage->startFunctionCall(f, functionName, returnType == NULL || assignToRuleOutput? NULL: returnType->name, assignTo == NULL? NULL: assignTo->name);
 	for (Node nPtr = argList; nPtr != NULL; nPtr = nPtr->next) {
         const char *str = (const char *) nPtr->element.name;
         /* Spaces from the input */
@@ -487,8 +487,7 @@ Node MakeNode(short int lineNr, NodeType nodeType, void *element, Node next) {
 	return (node);
 }
 
-NodeList MakeNodeList(Node first, NodeList rest)
-{
+NodeList MakeNodeList(Node first, NodeList rest) {
 	NodeList nodeList = (NodeList) mmalloc(sizeof(struct NodeList));
 
 	nodeList->first = first;
@@ -556,16 +555,13 @@ Boolean containsGrammarSymbol(NodeList list) {
 	return false;
 }
 
-Node AppendNode(Node node1, Node node2)
-{
+Node AppendNode(Node node1, Node node2) {
 	Node ret = node1;
 
-	if (node1 == NULL)
-	{
+	if (node1 == NULL) {
 		return (node2);
 	}
-	while (node1->next != NULL)
-	{
+	while (node1->next != NULL) {
 		node1 = node1->next;
 	}
 	node1->next = node2;
@@ -679,27 +675,21 @@ static void determineEmpty(Name name) {
 	}
 }
 
-int NameCmpStr(Name str1, char *str2)
-{
+int NameCmpStr(Name str1, char *str2) {
 	return (strcmp(str1->name, str2));
 }
 
-int NameCmp(Name str1, Name str2)
-{
+int NameCmp(Name str1, Name str2) {
 	return (str1 == NULL? (str2 == NULL? 0: -1): (str2 == NULL? 1: strcmp(str1->name, str2->name)));
 }
 
-static Boolean InsertElement(TREE *first, Name name)
-{
+static Boolean InsertElement(TREE *first, Name name) {
 	Name sym = GetInfo(FindNode(*first, name, (TreeCmp) NameCmp));
 
-	if (sym == NULL)
-	{
+	if (sym == NULL) {
 		InsertNodeSingle(first, name, name, (TreeCmp) NameCmp);
 		return (true);
-	}
-	else
-	{
+	} else {
 		return (false);
 	}
 }
@@ -791,8 +781,7 @@ Boolean bracesOnNewLine = false;
 
 void doIndent(int level) {
     fputc('\n', outputFile);
-	while (level != 0)
-	{
+	while (level != 0) {
 		fputs("	", outputFile);
 		level--;
 	}
@@ -871,6 +860,10 @@ static void PrintStateTransitionEnd(FILE* f) {
     targetLanguage->stateTransitionEnd(f);
 }
 
+/**
+ * Collects the first symbols of rule, and unites them with follow if the
+ * rule can be empty. Returns true when rule can be empty.
+ */
 static Boolean collectFirst(TREE *firsts, TREE follow, Node rule) {
 	NodeList rules;
 	Boolean empty = true;
@@ -938,25 +931,20 @@ static void DetermineFirst(Name name) {
 	KillTree(firsts, NULL);
 }
 
-static void DetermineFollowRule(TREE *follow, Node rule, Name orig, TREE followers)
-{
+static void DetermineFollowRule(TREE *follow, Node rule, Name orig, TREE followers) {
 	NodeList rules;
 	TREE nFollowers;
-	TREE chain1Followers;
-	TREE chain2Followers;
+	TREE chain1EltFollowers;
+	TREE chain2EltFollowers;
     TREE sequenceFirstsAndFollowers;
 
-	for (; rule != NULL; rule = rule->next)
-	{
-		if (rule->nodeType != single || rule->element.name == orig)
-		{
+	for (; rule != NULL; rule = rule->next) {
+		if (rule->nodeType != single || rule->element.name == orig) {
 			nFollowers = NULL;
 			(void) collectFirst(&nFollowers, followers, rule->next);
-			switch (rule->nodeType)
-			{
+			switch (rule->nodeType) {
 				case single: /* && rule->element.name == orig */
-					if (Unite(follow, nFollowers))
-					{
+					if (Unite(follow, nFollowers)) {
 						changes = true;
 					}
 					break;
@@ -974,32 +962,31 @@ static void DetermineFollowRule(TREE *follow, Node rule, Name orig, TREE followe
 					/*	A CHAIN B, C
 						FOLLOW(A) = nFollowers + FIRST(B) + (EMPTY(B)? FIRST(A) + ...: EMPTY)
 						FOLLOW(B) = FIRST(A) + (EMPTY(A)? FIRST(B) + nFollowers: EMPTY) */
-					chain1Followers = NULL;
-					chain2Followers = NULL;
-					(void) collectFirst(&chain2Followers, nFollowers, rule->element.sub->element.sub);
-					/* chain2Followers = FIRST(A) + (EMPTY(A)? nFollowers: EMPTY) */
-					(void) collectFirst(&chain1Followers, chain2Followers, rule->element.sub->next->element.sub);
-					/* chain1Followers = FIRST(B) + (EMPTY(B)? chain2Followers: EMPTY) */
-					(void) Unite(&chain1Followers, nFollowers);
-					/* chain1Followers = nFollowers + FIRST(B) + ... */
-					DetermineFollowRule(follow, rule->element.sub->element.sub, orig, chain1Followers);
-					KillTree(chain1Followers, NULL);
-					KillTree(chain2Followers, NULL);
-					chain1Followers = NULL;
-					chain2Followers = NULL;
-					(void) collectFirst(&chain2Followers, NULL, rule->element.sub->next->element.sub);
-					/* chain2Followers = FIRST(B) */
-					(void) Unite(&chain2Followers, nFollowers);
-					/* chain2Followers = FIRST(B) + nFollowers */
-					(void) collectFirst(&chain1Followers, chain2Followers, rule->element.sub->element.sub);
-					/* chain1Followers = FIRST(A) + (EMPTY(A)? chain2Followers: EMPTY) */
-					DetermineFollowRule(follow, rule->element.sub->next->element.sub, orig, chain1Followers);
-					KillTree(chain1Followers, NULL);
-					KillTree(chain2Followers, NULL);
+					chain1EltFollowers = NULL;
+					chain2EltFollowers = NULL;
+					(void) collectFirst(&chain2EltFollowers, nFollowers, rule->element.sub->element.sub);
+					/* chain2EltFollowers = FIRST(A) + (EMPTY(A)? nFollowers: EMPTY) */
+					(void) collectFirst(&chain1EltFollowers, chain2EltFollowers, rule->element.sub->next->element.sub);
+					/* chain1EltFollowers = FIRST(B) + (EMPTY(B)? chain2EltFollowers: EMPTY) */
+					(void) Unite(&chain1EltFollowers, nFollowers);
+					/* chain1EltFollowers = nFollowers + FIRST(B) + ... */
+					DetermineFollowRule(follow, rule->element.sub->element.sub, orig, chain1EltFollowers);
+					KillTree(chain1EltFollowers, NULL);
+					KillTree(chain2EltFollowers, NULL);
+					chain1EltFollowers = NULL;
+					chain2EltFollowers = NULL;
+					(void) collectFirst(&chain2EltFollowers, NULL, rule->element.sub->next->element.sub);
+					/* chain2EltFollowers = FIRST(B) */
+					(void) Unite(&chain2EltFollowers, nFollowers);
+					/* chain2EltFollowers = FIRST(B) + nFollowers */
+					(void) collectFirst(&chain1EltFollowers, chain2EltFollowers, rule->element.sub->element.sub);
+					/* chain1EltFollowers = FIRST(A) + (EMPTY(A)? chain2EltFollowers: EMPTY) */
+					DetermineFollowRule(follow, rule->element.sub->next->element.sub, orig, chain1EltFollowers);
+					KillTree(chain1EltFollowers, NULL);
+					KillTree(chain2EltFollowers, NULL);
 					break;
 				case alternative: /* Try each one... */
-					for (rules = rule->element.alternatives; rules != NULL; rules = rules->rest)
-					{
+					for (rules = rule->element.alternatives; rules != NULL; rules = rules->rest) {
 						DetermineFollowRule(follow, rules->first, orig, nFollowers);
 					}
 					break;
@@ -1057,8 +1044,7 @@ static void ComputeEmptyFirstFollow(void) {
 	while (changes);
 }
 
-static void RenumberRegExp(RegExp regExp)
-{
+static void RenumberRegExp(RegExp regExp) {
 	Transition tr, tr2;
 	ESet transitions;
 	int mCount = CharSetSize(), count;
@@ -1067,23 +1053,17 @@ static void RenumberRegExp(RegExp regExp)
 	int i, tCount;
 	int sNum = 0;
 
-	while (regExp != NULL)
-	{
+	while (regExp != NULL) {
 		mState = NULL;
-		if (regExp->transitions == NULL)
-		{
+		if (regExp->transitions == NULL) {
 			regExp->state.number = -1;
-		}
-		else
-		{
+		} else {
 			regExp->state.number = sNum;
 			transitions = NULL;
 			tCount = CharSetSize();
 			for (i = 0; i != tCount; i++) cSet[i] = false;
-			for (tr = regExp->transitions; tr != NULL; tr = tr->next)
-			{
-				if (!cSet[tr->transitionChar])
-				{
+			for (tr = regExp->transitions; tr != NULL; tr = tr->next) {
+				if (!cSet[tr->transitionChar]) {
 					mCount--;
 					cSet[tr->transitionChar] = true;
 					tCount--;
@@ -1091,40 +1071,31 @@ static void RenumberRegExp(RegExp regExp)
 			}
 			mCount = tCount;
 			/* mCount is nr. of fails, mState == NULL, the fail state */
-			for (tr = regExp->transitions; tr != NULL; tr = tr->next)
-			{
+			for (tr = regExp->transitions; tr != NULL; tr = tr->next) {
 				if (tr->destination != mState) /* not the most efficient check, but ok */
 				{
 					for (count = 0, tr2 = tr; tr2 != NULL; tr2 = tr2->next)
 						if (tr2->destination == tr->destination) count++;
-					if (count > mCount)
-					{
+					if (count > mCount) {
 						mCount = count;
 						mState = tr->destination;
 					}
 				}
 			}
 			/* mCount is max. nr. of transitions to the same state, mState is that state */
-			for (tr = regExp->transitions; tr != NULL; tr = tr->next)
-			{
-				if (tr->destination != mState && !SetMember(tr->destination, transitions))
-				{
+			for (tr = regExp->transitions; tr != NULL; tr = tr->next) {
+				if (tr->destination != mState && !SetMember(tr->destination, transitions)) {
 					transitions = AddElement(tr->destination, transitions);
 					for (tr2 = tr; tr2 != NULL; tr2 = tr2->next)
 						if (tr2->destination == tr->destination)
 							sNum++;
 				}
 			}
-			if (mState == NULL)
-			{
+			if (mState == NULL) {
 				sNum++;
-			}
-			else
-			{
-				if (tCount != 0)
-				{
-					for (i = 0; i != CharSetSize(); i++)
-					{
+			} else {
+				if (tCount != 0) {
+					for (i = 0; i != CharSetSize(); i++) {
 						if (!cSet[i]) sNum++;
 					}
 				}
@@ -1157,21 +1128,16 @@ static Name TokenIndexName(int i, Boolean strings) {
 	return NULL;
 }
 
-static int TokenSetCmp(void *tSet1, void *tSet2)
-{
+static int TokenSetCmp(void *tSet1, void *tSet2) {
 	ESet tokenSet1 = tSet1;
 	ESet tokenSet2 = tSet2;
 
-	while (tokenSet1 != NULL && tokenSet2 != NULL)
-	{
+	while (tokenSet1 != NULL && tokenSet2 != NULL) {
 		Answer answer1 = (Answer) tokenSet1->element;
 		Answer answer2 = (Answer) tokenSet2->element;
-		if (answer1->info > answer2->info)
-		{
+		if (answer1->info > answer2->info) {
 			return (1);
-		}
-		else if (answer1->info < answer2->info)
-		{
+		} else if (answer1->info < answer2->info) {
 			return (-1);
 		}
 		tokenSet1 = tokenSet1->next;
@@ -1180,21 +1146,18 @@ static int TokenSetCmp(void *tSet1, void *tSet2)
 	return (tokenSet1 != NULL? 1: tokenSet2 != NULL? -1: 0);
 }
 
-static void CreateTokenSet(FILE *f, ESet tokenSet)
-{
+static void CreateTokenSet(FILE *f, ESet tokenSet) {
 	TREE node = FindNode(tokenSets, tokenSet, TokenSetCmp);
 	TREE tokens = NULL;
 	int lastBoundary = 0;
 	unsigned long int cValue = 0;
 
-	if (node == NULL)
-	{
+	if (node == NULL) {
 		tokenSetNr++;
 		InsertNodeSingle(&tokenSets, tokenSet, (void *) tokenSetNr, TokenSetCmp);
         targetLanguage->arrayDeclaration(f, "static", targetLanguage->tokenSetType,
                                          "llTokenSet", tokenSetNr, (nodeNumber + 1) / nrBitsInElement + 1, true);
-		while (tokenSet != NULL)
-		{
+		while (tokenSet != NULL) {
 			InsertNodeSingle(&tokens, ((Answer) tokenSet->element)->info, NULL, IntCmp);
 			tokenSet = tokenSet->next;
 		}
@@ -1203,8 +1166,7 @@ static void CreateTokenSet(FILE *f, ESet tokenSet)
             if (node != NULL) {
                 int tokenIndex = (int) GetKey(node);
                 if (tokenIndex == -1) tokenIndex = 0;
-                while (tokenIndex >= lastBoundary + nrBitsInElement)
-                {
+                while (tokenIndex >= lastBoundary + nrBitsInElement) {
                     fprintf(f, "0x%0*lX", (nrBitsInElement + 3) / 4, cValue);
                     cValue = 0;
                     lastBoundary += nrBitsInElement;
@@ -1236,37 +1198,29 @@ static void CreateTokenSet(FILE *f, ESet tokenSet)
 	}
 }
 
-static void FormatTokenSets(FILE *f, RegExp dfa)
-{
+static void FormatTokenSets(FILE *f, RegExp dfa) {
 	RegExp regExp;
 
-	for (regExp = dfa; regExp != NULL; regExp = regExp->next)
-	{
-		if (regExp->info != NULL)
-		{
+	for (regExp = dfa; regExp != NULL; regExp = regExp->next) {
+		if (regExp->info != NULL) {
 			CreateTokenSet(f, regExp->info);
 		}
 	}
 }
 
-static char *TokenSetName(RegExp state)
-{
+static char *TokenSetName(RegExp state) {
 	static char tokenSetName[16];
 	TREE node;
 
-	if (state == NULL || state->info == NULL || (node = FindNode(tokenSets, state->info, TokenSetCmp)) == NULL)
-	{
+	if (state == NULL || state->info == NULL || (node = FindNode(tokenSets, state->info, TokenSetCmp)) == NULL) {
 		strcpy(tokenSetName, targetLanguage->nullValue);
-	}
-	else
-	{
+	} else {
 		sprintf(tokenSetName, "llTokenSet%d", (int) GetInfo(node));
 	}
 	return (tokenSetName);
 }
 
-static void FormatRegExp(FILE *f, RegExp dfa)
-{
+static void FormatRegExp(FILE *f, RegExp dfa) {
 	Transition tr, tr2;
 	ESet transitions;
 	int mCount = CharSetSize(), count;
@@ -1277,50 +1231,40 @@ static void FormatRegExp(FILE *f, RegExp dfa)
 	RegExp regExp;
 	int sNum = 0;
 
-	for (regExp = dfa; regExp != NULL; regExp = regExp->next)
-	{
+	for (regExp = dfa; regExp != NULL; regExp = regExp->next) {
 		if (prntd) fputs("\n", f);
-		if (regExp->transitions != NULL)
-		{
+		if (regExp->transitions != NULL) {
             PrintStateTransitionStart(f, regExp->state.number);
 			prntd = true;
 			mState = NULL;
 			transitions = NULL;
 			tCount = CharSetSize();
 			for (i = 0; i != tCount; i++) cSet[i] = false;
-			for (tr = regExp->transitions; tr != NULL; tr = tr->next)
-			{
-				if (!cSet[tr->transitionChar])
-				{
+			for (tr = regExp->transitions; tr != NULL; tr = tr->next) {
+				if (!cSet[tr->transitionChar]) {
 					cSet[tr->transitionChar] = true;
 					tCount--;
 				}
 			}
 			mCount = tCount;
 			/* mCount is nr. of fails, mState == NULL, the fail state */
-			for (tr = regExp->transitions; tr != NULL; tr = tr->next)
-			{
+			for (tr = regExp->transitions; tr != NULL; tr = tr->next) {
 				if (tr->destination != mState) /* not the most efficient check, but ok */
 				{
 					for (count = 0, tr2 = tr; tr2 != NULL; tr2 = tr2->next)
 						if (tr2->destination == tr->destination) count++;
-					if (count > mCount)
-					{
+					if (count > mCount) {
 						mCount = count;
 						mState = tr->destination;
 					}
 				}
 			}
 			/* mCount is max. nr. of transitions to the same state, mState is that state */
-			for (tr = regExp->transitions; tr != NULL; tr = tr->next)
-			{
-				if (tr->destination != mState && !SetMember(tr->destination, transitions))
-				{
+			for (tr = regExp->transitions; tr != NULL; tr = tr->next) {
+				if (tr->destination != mState && !SetMember(tr->destination, transitions)) {
 					transitions = AddElement(tr->destination, transitions);
-					for (tr2 = tr; tr2 != NULL; tr2 = tr2->next)
-					{
-						if (tr2->destination == tr->destination)
-						{
+					for (tr2 = tr; tr2 != NULL; tr2 = tr2->next) {
+						if (tr2->destination == tr->destination) {
 							if (prntd) prntd = false;
 							else fputs("		  ", f);
                             PrintStateTransition(f, tr2->transitionChar, tr->destination->state.number, TokenSetName(tr->destination));
@@ -1329,21 +1273,15 @@ static void FormatRegExp(FILE *f, RegExp dfa)
 					}
 				}
 			}
-			if (mState == NULL)
-			{
+			if (mState == NULL) {
 				if (prntd) prntd = false;
 				else fputs("		  ", f);
                 PrintStateTransition(f, -1, -1, targetLanguage->nullValue);
 				sNum++;
-			}
-			else
-			{
-				if (tCount != 0)
-				{
-					for (i = 0; i != CharSetSize(); i++)
-					{
-						if (!cSet[i])
-						{
+			} else {
+				if (tCount != 0) {
+					for (i = 0; i != CharSetSize(); i++) {
+						if (!cSet[i]) {
 							if (prntd) prntd = false;
 							else fputs("		  ", f);
                             PrintStateTransition(f, i, -1, targetLanguage->nullValue);
@@ -1365,60 +1303,43 @@ static void FormatRegExp(FILE *f, RegExp dfa)
 	if (prntd) fputs("\n", f);
 }
 
-static void regexpcopy(char *copy, char *regexp)
-{
+static void regexpcopy(char *copy, char *regexp) {
 	regexp++;
-	while (*regexp != '\0')
-	{
-		if (*regexp == '"')
-		{
-			if (regexp[1] != '\0')
-			{
+	while (*regexp != '\0') {
+		if (*regexp == '"') {
+			if (regexp[1] != '\0') {
 				yyerror("quote error in regexp\n");
 				errorOccurred = true;
 			}
 			*copy = '\0';
 			return;
-		}
-		else if (*regexp == '\\')
-		{
-			if (regexp[1] == '\0')
-			{
+		} else if (*regexp == '\\') {
+			if (regexp[1] == '\0') {
 				yyerror("escape error in regexp\n");
 				errorOccurred = true;
 				regexp++;
-			}
-			else if (regexp[1] == '"')
-			{
+			} else if (regexp[1] == '"') {
 				*copy++ = '"';
 				regexp += 2;
-			}
-			else if (regexp[1] == '\\')
-			{
+			} else if (regexp[1] == '\\') {
 				*copy++ = '\\';
 				*copy++ = '\\';
 				regexp += 2;
-			}
-			else
-			{
+			} else {
 				*copy++ = *regexp++;
 			}
-		}
-		else
-		{
+		} else {
 			*copy++ = *regexp++;
 		}
 	}
 }
 
-static void VerifyTokenOverlap(ESet oTokenSet)
-{
+static void VerifyTokenOverlap(ESet oTokenSet) {
 	int nrTokens = 0;
 	ESet tokenSet = oTokenSet;
 	ESet token;
 
-	while (tokenSet != NULL)
-	{
+	while (tokenSet != NULL) {
         int tokenIndex = (int) ((Answer) tokenSet->element)->info;
         if (tokenIndex != -1) {
             /* Ignore overlap with endOfInput/IGNORE, since endOfInput can't
@@ -1428,18 +1349,15 @@ static void VerifyTokenOverlap(ESet oTokenSet)
         }
 		tokenSet = tokenSet->next;
 	}
-	if (nrTokens > 1)
-	{
+	if (nrTokens > 1) {
 		fprintf(stderr, "Overlap between tokens:\n");
-		for (tokenSet = oTokenSet; tokenSet != NULL; tokenSet = tokenSet->next)
-		{
+		for (tokenSet = oTokenSet; tokenSet != NULL; tokenSet = tokenSet->next) {
 			int tokenIndex = (int) ((Answer) tokenSet->element)->info;
 			Name name = TokenIndexName(tokenIndex, true);
 			TREE node = InsertNodeSingle(&overlap, name, NULL, (TreeCmp) NameCmp);
 			TREE nOverlap = GetInfo(node);
 			fprintf(stderr, "%s:%d: token %d: %s\n", inputFileName, name->lineNr, tokenIndex, name->name);
-			for (token = oTokenSet; token != NULL; token = token->next)
-			{
+			for (token = oTokenSet; token != NULL; token = token->next) {
 				InsertNodeSingle(&nOverlap, TokenIndexName((int) ((Answer) token->element)->info, true), NULL, (TreeCmp) NameCmp);
 			}
 			SetInfo(node, nOverlap);
@@ -1447,8 +1365,7 @@ static void VerifyTokenOverlap(ESet oTokenSet)
 	}
 }
 
-static void CheckOverlap(RegExp dfa)
-{
+static void CheckOverlap(RegExp dfa) {
 	Transition tr, tr2;
 	ESet transitions;
 	int mCount = CharSetSize(), count;
@@ -1457,61 +1374,48 @@ static void CheckOverlap(RegExp dfa)
 	int i, tCount;
 	RegExp regExp;
 
-	for (regExp = dfa; regExp != NULL; regExp = regExp->next)
-	{
-		if (regExp->transitions != NULL)
-		{
+	for (regExp = dfa; regExp != NULL; regExp = regExp->next) {
+		if (regExp->transitions != NULL) {
 			mState = NULL;
 			transitions = NULL;
 			tCount = CharSetSize();
 			for (i = 0; i != tCount; i++) cSet[i] = false;
-			for (tr = regExp->transitions; tr != NULL; tr = tr->next)
-			{
-				if (!cSet[tr->transitionChar])
-				{
+			for (tr = regExp->transitions; tr != NULL; tr = tr->next) {
+				if (!cSet[tr->transitionChar]) {
 					mCount--;
 					cSet[tr->transitionChar] = true;
 					tCount--;
 				}
 			}
 			/* mCount is nr. of fails, mState == NULL, the fail state */
-			for (tr = regExp->transitions; tr != NULL; tr = tr->next)
-			{
+			for (tr = regExp->transitions; tr != NULL; tr = tr->next) {
 				if (tr->destination != mState) /* not the most efficient check, but ok */
 				{
 					for (count = 0, tr2 = tr; tr2 != NULL; tr2 = tr2->next)
 						if (tr2->destination == tr->destination) count++;
-					if (count > mCount)
-					{
+					if (count > mCount) {
 						mCount = count;
 						mState = tr->destination;
 					}
 				}
 			}
 			/* mCount is max. nr. of transitions to the same state, mState is that state */
-			for (tr = regExp->transitions; tr != NULL; tr = tr->next)
-			{
-				if (tr->destination != mState && !SetMember(tr->destination, transitions))
-				{
+			for (tr = regExp->transitions; tr != NULL; tr = tr->next) {
+				if (tr->destination != mState && !SetMember(tr->destination, transitions)) {
 					transitions = AddElement(tr->destination, transitions);
-					for (tr2 = tr; tr2 != NULL; tr2 = tr2->next)
-					{
-						if (tr2->destination == tr->destination)
-						{
+					for (tr2 = tr; tr2 != NULL; tr2 = tr2->next) {
+						if (tr2->destination == tr->destination) {
 							TREE node = FindNode(tokenSets, tr->destination->info, TokenSetCmp);
-							if (node != NULL)
-							{
+							if (node != NULL) {
 								VerifyTokenOverlap(GetKey(node));
 							}
 						}
 					}
 				}
 			}
-			if (mState != NULL)
-			{
+			if (mState != NULL) {
 				TREE node = FindNode(tokenSets, mState->info, TokenSetCmp);
-				if (node != NULL)
-				{
+				if (node != NULL) {
 					VerifyTokenOverlap(GetKey(node));
 				}
 			}
@@ -1520,38 +1424,30 @@ static void CheckOverlap(RegExp dfa)
 	}
 }
 
-static void CompileScanner(void)
-{
+static void CompileScanner(void) {
 	TREE sym;
 	Name name;
 	RegExp nfa = NULL;
 	int res;
 	char regexpbuf[256];
 
-	if (!HasProperty("escregexp"))
-	{
+	if (!HasProperty("escregexp")) {
 		viMode = true;
 	}
 	push_localadm();
 	nfa = InitRegExp();
 	SetSingleAnswer(false);
-	if (HasProperty("extcharset"))
-	{
+	if (HasProperty("extcharset")) {
 		SetCharSetSize(256);
-	}
-	else
-	{
+	} else {
 		SetCharSetSize(128);
 	}
 
-	for (sym = GetFirstNode(idTree); sym != NULL; sym = GetNextNode(sym))
-	{
+	for (sym = GetFirstNode(idTree); sym != NULL; sym = GetNextNode(sym)) {
 		name = GetKey(sym);
-		if (name->nameType == string && name->index != 0)
-		{
+		if (name->nameType == string && name->index != 0) {
 			regexpcopy(regexpbuf, name->name);
-			if ((res = AddRegExp(nfa, regexpbuf, (void *) name->index)) != 0)
-			{
+			if ((res = AddRegExp(nfa, regexpbuf, (void *) name->index)) != 0) {
 				fprintf(stderr, "%s:%d: %s\n", inputFileName, name->lineNr, regExpError[res]);
 				errorOccurred = true;
 			}
@@ -1677,18 +1573,15 @@ static void PrintCode(char *str, NameType prev, NameType next, int indent) {
 	}
 }
 
-static int TokenSetCmp2(void *tSet1, void *tSet2)
-{
+static int TokenSetCmp2(void *tSet1, void *tSet2) {
 	TREE t1 = GetFirstNode(tSet1);
 	TREE t2 = GetFirstNode(tSet2);
 
-	while (t1 != NULL && t2 != NULL)
-	{
+	while (t1 != NULL && t2 != NULL) {
 		Name token1 = (Name) GetKey(t1);
 		Name token2 = (Name) GetKey(t2);
 		int res = strcmp(token1->name, token2->name);
-		if (res != 0)
-		{
+		if (res != 0) {
 			return (res);
 		}
 		t1 = GetNextNode(t1);
@@ -1703,12 +1596,10 @@ static void TokenSetName2(TREE tokenSet) {
     targetLanguage->pointerToArray(outputFile, "llTokenSet", (long int) GetInfo(node));
 }
 
-static void CreateTokenSet2(FILE *f, TREE tokenSet)
-{
+static void CreateTokenSet2(FILE *f, TREE tokenSet) {
 	TREE node = FindNode(tokenSets2, tokenSet, TokenSetCmp2);
 
-	if (node == NULL)
-	{
+	if (node == NULL) {
 		tokenSetNr++;
 		InsertNodeSingle(&tokenSets2, CopyTree(tokenSet, NULL, NULL), (void *) tokenSetNr, TokenSetCmp2);
         targetLanguage->arrayDeclaration(f, "static", targetLanguage->tokenSetType,
@@ -1721,10 +1612,12 @@ static void CreateGuard(Boolean guard, Boolean generateCode, Boolean empty, int 
 	if (guard) {
 		if (generateCode) {
 			doIndent(indent);
-			fprintf(outputFile, "%swaitForToken(", targetLanguage->owner);
+			fputs(targetLanguage->owner, outputFile);
+			targetLanguage->startFunctionCall(outputFile, "waitForToken", NULL, NULL);
+			targetLanguage->nextCallParameter(outputFile);
 			if (firsts == NULL) {
-				fputs("follow\n", outputFile);
-			} else if (empty || firstOfRule) {
+				fputs("follow", outputFile);
+			} else if (empty) {
 				fputs("uniteTokenSets(", outputFile);
                 if (targetLanguage->requiresLocalLTSetStorage) {
                     targetLanguage->pointerToArray(outputFile, "ltSet", -1);
@@ -1735,7 +1628,10 @@ static void CreateGuard(Boolean guard, Boolean generateCode, Boolean empty, int 
 			} else {
 				TokenSetName2(firsts);
 			}
-            fprintf(outputFile, ", follow)%s", targetLanguage->terminateStatement);
+			targetLanguage->nextCallParameter(outputFile);
+			targetLanguage->nextCallParameterSymbol(outputFile, "follow");
+			targetLanguage->endFunctionCall(outputFile);
+            fputs(targetLanguage->terminateStatement, outputFile);
 			if (HasProperty("showfirsts")) {
 				fputs(" /* ", outputFile);
 				PrintTree(outputFile, firsts);
@@ -1749,7 +1645,7 @@ static void CreateGuard(Boolean guard, Boolean generateCode, Boolean empty, int 
                 ifCondition(false, indent);
 			}
 		} else {
-			if (firsts != NULL && (empty || firstOfRule)) {
+			if (firsts != NULL && empty) {
 				*usesLA = true;
 			}
 			CreateTokenSet2(outputFile, firsts);
@@ -1757,24 +1653,24 @@ static void CreateGuard(Boolean guard, Boolean generateCode, Boolean empty, int 
 	}
 }
 
-static void PrintFirstSymbols(TREE ofirsts, TREE oneOf, void (*cond)(Boolean, int), int indent, Boolean positive, Boolean generateCode, TREE *symbols, int lineNr, Boolean emptyFollow, Boolean* usesLA) {
-	TREE common = Intersection2(ofirsts, oneOf);
+static void PrintFirstSymbols(TREE ofirsts, void (*cond)(Boolean, int), int indent, Boolean positive, Boolean generateCode, TREE *symbols, int lineNr, Boolean emptyFollow, Boolean* usesLA) {
+	TREE common = ofirsts; // !!! Intersection2(ofirsts, oneOf); !!! See KillTree at end and emptyFollow
 
 	if (generateCode) {
         cond(true, indent);
         fprintf(outputFile, "%stokenInCommon(%scurrSymbol, ", (positive? "": "!"), targetLanguage->owner);
-		if (emptyFollow) {
-			fputs("uniteTokenSets(", outputFile);
-            if (targetLanguage->requiresLocalLTSetStorage) {
-                targetLanguage->pointerToArray(outputFile, "ltSet", -1);
-                fputs(", ", outputFile);
-            }
-            fputs("follow, ", outputFile);
-		}
+		// !!! if (emptyFollow) {
+		// 	fputs("uniteTokenSets(", outputFile);
+        //     if (targetLanguage->requiresLocalLTSetStorage) {
+        //         targetLanguage->pointerToArray(outputFile, "ltSet", -1);
+        //         fputs(", ", outputFile);
+        //     }
+        //     fputs("follow, ", outputFile);
+		// }
         TokenSetName2(common);
-		if (emptyFollow) {
-            fputs(")", outputFile);
-        }
+		// !!! if (emptyFollow) {
+        //     fputs(")", outputFile);
+        // }
         fputs(")", outputFile);
         cond(false, indent);
 		if (common == NULL || (symbols != NULL && NotEmptyIntersection(*symbols, common))) {
@@ -1796,15 +1692,14 @@ static void PrintFirstSymbols(TREE ofirsts, TREE oneOf, void (*cond)(Boolean, in
 		}
 	} else {
 		CreateTokenSet2(outputFile, common);
-		if (emptyFollow) {
-			*usesLA = true;
-		}
+		// !!! if (emptyFollow) {
+		// 	*usesLA = true;
+		// }
 	}
-	KillTree(common, NULL);
+	// !!! KillTree(common, NULL);
 }
 
-static void GenerateSingle(Node rule, NameType previous, int indent, Boolean generateCode)
-{
+static void GenerateSingle(Node rule, NameType previous, int indent, Boolean generateCode) {
     if (generateCode) {
         if (HasProperty("line") && lastLineCopied != rule->lineNr) {
             fprintf(outputFile, "#line %d \"%s\"\n", rule->lineNr, inputFileName);
@@ -1827,20 +1722,25 @@ static void GenerateSingle(Node rule, NameType previous, int indent, Boolean gen
     }
 }
 
-static void GenerateRule(Node rule, TREE follow, TREE oneOf, int indent, Boolean generateCode, Boolean guard, TREE firstNext, Boolean *usesLA) {
+/**
+ * rule: sub-rule to generate
+ * emptyToEndOfRule: true when there is an empty path from rule to the end of the top production rule.
+ * follow: the set of symbols that can follow rule
+ */
+static void GenerateRule(Name ruleName, Node rule, Boolean emptyToEndOfRule, TREE follow, int indent, Boolean generateCode, Boolean guard, TREE firstNext, Boolean *usesLA) {
 	NameType previous = string;
-	TREE chain1Followers;
-	TREE chain2Followers;
-	TREE overlap;
+	TREE chainElt1Followers;
+	TREE chainElt2Followers;
 	TREE directFollowers;
+	TREE overlap;
 	Boolean empty1, empty2;
 
     if (generateCode && HasProperty("debugFF")) {
         doIndent(indent);
         fputs("/* follow: ", outputFile); PrintTree(outputFile, follow);
-        fputs(", oneOf: ", outputFile); PrintTree(outputFile, oneOf);
         fputs(", firstNext: ", outputFile); PrintTree(outputFile, firstNext);
-        fputs("*/\n", outputFile);
+		fprintf(outputFile, ", emptyToEndOfRule: %s", emptyToEndOfRule? "true": "false");
+        fputs("*/", outputFile);
     }
 	while (rule != NULL) {
 		TREE firsts = NULL;
@@ -1850,25 +1750,27 @@ static void GenerateRule(Node rule, TREE follow, TREE oneOf, int indent, Boolean
         TREE sequenceFollowers = NULL;
 		(void) collectFirst(&followers, follow, rule->next);
 		empty2 = collectFirst(&lFirstNext, firstNext, rule->next);
+		if (generateCode && HasProperty("debugFF")) {
+			doIndent(indent);
+			fputs("/* followers: ", outputFile); PrintTree(outputFile, followers);
+			fputs(", lFirstNext: ", outputFile); PrintTree(outputFile, lFirstNext);
+			fprintf(outputFile, ", empty2: %s", empty2? "true": "false");
+			fputs("*/", outputFile);
+		}
 		switch (rule->nodeType) {
 			case single:
 				if (rule->element.name->nameType == identifier) {
-					directFollowers = NULL;
-					if (rule->next != NULL) {
-						empty1 = collectFirst(&directFollowers, firstNext, rule->next->next);
-					}
-					Unite(&directFollowers, lFirstNext);
 					if (generateCode) {
 						RuleResult res = rule->element.name->ruleResult;
 						Name returnType = res == NULL? NULL: res->returnType;
 						doIndent(indent);
-						int nrParameters = openFunctionCall(outputFile, rule->element.name->name, rule->arglist, returnType, rule->assignTo);
+						int nrParameters = openFunctionCall(outputFile, rule->element.name->name, rule->arglist, returnType, rule->assignTo, ruleName);
 						if (nrParameters != rule->element.name->nrParameters) {
 							fprintf(stderr, "%s:%d: error: wrong number of parameters\n", inputFileName, rule->lineNr);
 						}
                         targetLanguage->nextCallParameter(outputFile);
-						if (empty1 || empty2) {
-							if (directFollowers == NULL) {
+						if (empty2 && emptyToEndOfRule) {
+							if (lFirstNext == NULL) {
 								targetLanguage->nextCallParameterSymbol(outputFile, "follow");
 							} else {
 								fputs("uniteTokenSets(", outputFile);
@@ -1877,30 +1779,57 @@ static void GenerateRule(Node rule, TREE follow, TREE oneOf, int indent, Boolean
                                     fputs(", ", outputFile);
                                 }
                                 fputs("follow, ", outputFile);
-                                TokenSetName2(directFollowers);
+                                TokenSetName2(lFirstNext);
                                 fputs(")", outputFile);
 							}
 						} else {
-							TokenSetName2(directFollowers);
+							TokenSetName2(lFirstNext);
 						}
 						closeFunctionCall(outputFile);
 						fputs(targetLanguage->terminateStatement, outputFile);
 					} else {
-						if ((empty1 || empty2) && directFollowers != NULL) {
+						if (empty2 && emptyToEndOfRule && lFirstNext != NULL) {
 							*usesLA = true;
 						}
-						CreateTokenSet2(outputFile, directFollowers);
+						CreateTokenSet2(outputFile, lFirstNext);
 					}
-					KillTree(directFollowers, NULL);
 				} else if (rule->element.name->nameType == token || rule->element.name->nameType == string) {
 					if (generateCode) {
 						doIndent(indent);
-                        fprintf(outputFile, "%sgetToken(", targetLanguage->owner);
+					    fputs(targetLanguage->owner, outputFile);
+						targetLanguage->startFunctionCall(outputFile, "getToken", NULL, NULL);
+						targetLanguage->nextCallParameter(outputFile);
                         targetLanguage->tokenEnum(outputFile, rule->element.name->index, rule->element.name->name);
-						fputs(", ", outputFile);
+						targetLanguage->nextCallParameter(outputFile);
                         TokenSetName2(lFirstNext);
-						fprintf(outputFile,", follow)%s", targetLanguage->terminateStatement);
+						targetLanguage->nextCallParameter(outputFile);
+						if (empty2 && emptyToEndOfRule) {
+							if (lFirstNext == NULL) {
+								targetLanguage->nextCallParameterSymbol(outputFile, "follow");
+							} else {
+								fputs("uniteTokenSets(", outputFile);
+                                if (targetLanguage->requiresLocalLTSetStorage) {
+                                    targetLanguage->pointerToArray(outputFile, "ltSet", -1);
+                                    fputs(", ", outputFile);
+                                }
+                                fputs("follow, ", outputFile);
+                                TokenSetName2(lFirstNext);
+                                fputs(")", outputFile);
+							}
+						} else {
+							TokenSetName2(lFirstNext);
+						}
+						targetLanguage->nextCallParameter(outputFile);
+						targetLanguage->nextCallParameterSymbol(outputFile, empty2 && emptyToEndOfRule? "true": "false");
+						targetLanguage->endFunctionCall(outputFile);
+						fputs(targetLanguage->terminateStatement, outputFile);
+						if (rule->assignTo != NULL) {
+							targetLanguage->assignLastSymbolTo(outputFile, indent, rule->assignTo);
+						}
 					} else {
+						if (empty2 && emptyToEndOfRule && lFirstNext != NULL) {
+							*usesLA = true;
+						}
 						CreateTokenSet2(outputFile, lFirstNext);
 					}
 				} else if (rule->element.name->nameType == output || rule->element.name->nameType == code) {
@@ -1913,12 +1842,13 @@ static void GenerateRule(Node rule, TREE follow, TREE oneOf, int indent, Boolean
 			case option:
 				empty1 = collectFirst(&firsts, NULL, rule->element.sub);
 				CreateGuard(guard, generateCode, true, indent, firsts, false, usesLA);
-				if (empty1) Unite(&firsts, followers);
-				common = Intersection(firsts, oneOf);
+				// !!! if (empty1) Unite(&firsts, followers);
+				common = NULL; // !!! Intersection(firsts, oneOf);
 				if (generateCode) {
 					doIndent(indent);
 				}
-				PrintFirstSymbols(firsts, common, ifCondition, indent, true, generateCode, NULL, rule->lineNr, empty1, usesLA);
+				PrintFirstSymbols(firsts, ifCondition, indent, true, generateCode, NULL,
+								  rule->lineNr, empty1, usesLA);
 				if (generateCode) {
 					startBlock(indent);
 					overlap = Intersection2(firsts, followers);
@@ -1932,7 +1862,8 @@ static void GenerateRule(Node rule, TREE follow, TREE oneOf, int indent, Boolean
 						KillTree(overlap, NULL);
 					}
 				}
-				GenerateRule(rule->element.sub, followers, common, indent + 1, generateCode, false, lFirstNext, usesLA);
+				GenerateRule(ruleName, rule->element.sub, empty2 && emptyToEndOfRule, followers,
+							 indent + 1, generateCode, false, lFirstNext, usesLA);
 				if (generateCode) {
 					terminateBlock(indent);
 				}
@@ -1940,7 +1871,7 @@ static void GenerateRule(Node rule, TREE follow, TREE oneOf, int indent, Boolean
 			case sequence:
 				empty1 = collectFirst(&firsts, NULL, rule->element.sub);
 				Unite(&lFirstNext, firsts); /* a sequence can be followed by itself */
-				CreateGuard(guard, generateCode, true, indent, firsts, false, usesLA);
+				CreateGuard(guard, generateCode, empty1, indent, firsts, false, usesLA);
 				if (empty1) {
                     Unite(&firsts, followers);
                     sequenceFollowers = firsts;
@@ -1948,11 +1879,12 @@ static void GenerateRule(Node rule, TREE follow, TREE oneOf, int indent, Boolean
                     Unite(&sequenceFollowers, firsts);
                     Unite(&sequenceFollowers, followers);
                 }
-				Unite(&common, firsts); Unite(&common, oneOf);
+				Unite(&common, firsts);
 				if (generateCode) {
 					startDoWhileLoop(indent);
 				}
-				GenerateRule(rule->element.sub, sequenceFollowers, common, indent + 1, generateCode, false, lFirstNext, usesLA);
+				GenerateRule(ruleName, rule->element.sub, empty2 && emptyToEndOfRule, sequenceFollowers,
+							 indent + 1, generateCode, false, lFirstNext, usesLA);
 				CreateGuard(true, generateCode, empty2, indent + 1, lFirstNext, false, usesLA);
 				if (generateCode) {
 					overlap = Intersection2(firsts, followers);
@@ -1966,7 +1898,8 @@ static void GenerateRule(Node rule, TREE follow, TREE oneOf, int indent, Boolean
 						KillTree(overlap, NULL);
 					}
 				}
-				PrintFirstSymbols(firsts, common, endDoWhileLoop, indent, true, generateCode, NULL, rule->lineNr, false, usesLA);
+				PrintFirstSymbols(firsts, endDoWhileLoop, indent, true, generateCode, NULL,
+								  rule->lineNr, false, usesLA);
                 if (sequenceFollowers != firsts) {
                     KillTree(sequenceFollowers, NULL);
                 }
@@ -1975,63 +1908,70 @@ static void GenerateRule(Node rule, TREE follow, TREE oneOf, int indent, Boolean
 				if (generateCode) {
 					startUnconditionalLoop(indent);
 				}
-				chain1Followers = NULL;
-				chain2Followers = NULL;
-				(void) collectFirst(&chain2Followers, followers, rule->element.sub->element.sub);
-				(void) collectFirst(&chain1Followers, chain2Followers, rule->element.sub->next->element.sub);
-				(void) Unite(&chain1Followers, followers);
+				chainElt1Followers = NULL;
+				chainElt2Followers = NULL;
+				Node chainElt1 = rule->element.sub->element.sub;
+				Node chainElt2 = rule->element.sub->next->element.sub;
+				Boolean emptyChain1 = collectFirst(&chainElt2Followers, followers, chainElt1);
+				collectFirst(&chainElt1Followers, chainElt2Followers, chainElt2);
+				(void) Unite(&chainElt1Followers, followers);
 				directFollowers = NULL;
-				if (collectFirst(&directFollowers, NULL, rule->element.sub->next->element.sub)) {
-					(void) collectFirst(&directFollowers, NULL, rule->element.sub->element.sub);
+				if (collectFirst(&directFollowers, NULL, chainElt2)) {
+					(void) collectFirst(&directFollowers, NULL, chainElt1);
 				}
 				(void) Unite(&directFollowers, lFirstNext);
-				GenerateRule(rule->element.sub->element.sub, chain1Followers, idTree, indent + 1, generateCode, true, directFollowers, usesLA);
+				GenerateRule(ruleName, chainElt1, empty2 && emptyToEndOfRule, chainElt1Followers,
+							 indent + 1, generateCode, true, directFollowers, usesLA);
 				KillTree(directFollowers, NULL);
-				KillTree(chain1Followers, NULL);
-				KillTree(chain2Followers, NULL);
-				chain1Followers = NULL;
-				(void) collectFirst(&chain1Followers, followers, rule->element.sub->element.sub);
-				(void) collectFirst(&firsts, chain1Followers, rule->element.sub->next->element.sub);
-				KillTree(chain1Followers, NULL);
+				KillTree(chainElt1Followers, NULL);
+				KillTree(chainElt2Followers, NULL);
+				chainElt1Followers = NULL;
+				(void) collectFirst(&chainElt1Followers, followers, chainElt1);
+				(void) collectFirst(&firsts, chainElt1Followers, chainElt2);
+				KillTree(chainElt1Followers, NULL);
 				if (generateCode) {
 					overlap = Intersection2(firsts, followers);
 					if (overlap != NULL) {
 						if (!rule->preferShift) {
 							doIndent(indent + 1);
 							fputs("/* Not an LL(1)-grammar (first/followers of chain overlap) */\n", outputFile);
-							fprintf(stderr, "%s:%d: not an LL(1)-grammar (first/followers of chain overlap)\n", inputFileName, rule->lineNr);
+							fprintf(stderr, "%s:%d: not an LL(1)-grammar (first/followers of chain overlap): ", inputFileName, rule->lineNr);
+							PrintTree(stderr, overlap);
+							fputc('\n', stderr);
 							notLLError = true;
 						}
 						KillTree(overlap, NULL);
 					}
 					doIndent(indent + 1);
 				}
-				PrintFirstSymbols(firsts, idTree, ifCondition, indent, false, generateCode, NULL, rule->lineNr, false, usesLA);
+				PrintFirstSymbols(firsts, ifCondition, indent, false, generateCode, NULL, rule->lineNr, false, usesLA);
 				if (generateCode) {
                     startBlock(indent + 1);
 					breakStatement(indent + 2);
 					terminateBlock(indent + 1);
 				}
-				chain1Followers = NULL;
-				chain2Followers = NULL;
-				(void) collectFirst(&chain2Followers, NULL, rule->element.sub->next->element.sub);
-				(void) Unite(&chain2Followers, followers);
-				(void) collectFirst(&chain1Followers, chain2Followers, rule->element.sub->element.sub);
+				chainElt1Followers = NULL;
+				chainElt2Followers = NULL;
+				collectFirst(&chainElt2Followers, NULL, chainElt2);
+				(void) Unite(&chainElt2Followers, followers);
+				(void) collectFirst(&chainElt1Followers, chainElt2Followers, chainElt1);
 				directFollowers = NULL;
-				if (collectFirst(&directFollowers, NULL, rule->element.sub->element.sub)) {
-					(void) collectFirst(&directFollowers, NULL, rule->element.sub->next->element.sub);
+				if (collectFirst(&directFollowers, NULL, chainElt1)) {
+					(void) collectFirst(&directFollowers, NULL, chainElt2);
 					Unite(&directFollowers, lFirstNext);
 				}
-				GenerateRule(rule->element.sub->next->element.sub, chain1Followers, firsts, indent + 1, generateCode, false, directFollowers, usesLA);
+				GenerateRule(ruleName, chainElt2, emptyChain1 && empty2 && emptyToEndOfRule,
+						     chainElt1Followers, indent + 1, generateCode, false, directFollowers, usesLA);
 				KillTree(directFollowers, NULL);
-				KillTree(chain1Followers, NULL);
-				KillTree(chain2Followers, NULL);
+				KillTree(chainElt1Followers, NULL);
+				KillTree(chainElt2Followers, NULL);
 				if (generateCode) {
                     endUnconditionalLoop(indent);
 				}
 				break;
 			case alternative:
-				PrintAlternatives(rule->element.alternatives, followers, oneOf, indent, targetLanguage->errorMsg, targetLanguage->errorArgs, generateCode, lFirstNext, usesLA, rule->lineNr);
+				PrintAlternatives(ruleName, rule->element.alternatives, emptyToEndOfRule, followers, indent,
+								  targetLanguage->errorMsg, targetLanguage->errorArgs, generateCode, lFirstNext, usesLA, rule->lineNr);
 				break;
 			default:
 				break;
@@ -2041,12 +1981,10 @@ static void GenerateRule(Node rule, TREE follow, TREE oneOf, int indent, Boolean
 		KillTree(firsts, NULL);
 		KillTree(common, NULL);
 		KillTree(lFirstNext, NULL);
-		oneOf = idTree;
 	}
 }
 
-static void PrintAlternatives(NodeList pRules, TREE follow, TREE oneOf, int indent, const char *errormsg, const char* errorargs, Boolean generateCode, TREE firstNext, Boolean *usesLA, int startLineNr)
-{
+static void PrintAlternatives(Name ruleName, NodeList pRules, Boolean emptyToEndOfRule, TREE follow, int indent, const char *errormsg, const char* errorargs, Boolean generateCode, TREE firstNext, Boolean *usesLA, int startLineNr) {
 	int cnt = 0;
 	TREE firsts = NULL;
 	TREE common;
@@ -2061,7 +1999,7 @@ static void PrintAlternatives(NodeList pRules, TREE follow, TREE oneOf, int inde
 	}
 	rule = pRules->first;
 	if (pRules != NULL && pRules->rest == NULL) {
-		GenerateRule(rule, follow, oneOf, indent, generateCode, false, firstNext, usesLA);
+		GenerateRule(ruleName, rule, emptyToEndOfRule, follow, indent, generateCode, false, firstNext, usesLA);
 	} else {
 		Boolean empty = false, empty1;
 		for (rules = pRules; rules != NULL; rules = rules->rest) {
@@ -2088,12 +2026,13 @@ static void PrintAlternatives(NodeList pRules, TREE follow, TREE oneOf, int inde
 						fputs(" ", outputFile);
 					}
 				}
-				PrintFirstSymbols(firsts, oneOf, (cnt == 0? ifCondition: elseIfCondition), indent, true, generateCode, &symbols, (rules->first == NULL? startLineNr: rules->first->lineNr), empty1, usesLA);
+				PrintFirstSymbols(firsts, (cnt == 0? ifCondition: elseIfCondition), indent, true, generateCode, &symbols, (rules->first == NULL? startLineNr: rules->first->lineNr), empty1, usesLA);
 				if (generateCode) {
 					startBlock(indent);
 				}
-				common = Intersection(firsts, oneOf);
-				GenerateRule(rules->first, follow, common, indent + 1, generateCode, false, firstNext, usesLA);
+				common = NULL; // !!! Intersection(firsts, oneOf);
+				GenerateRule(ruleName, rules->first, emptyToEndOfRule, follow, indent + 1,
+							 generateCode, false, firstNext, usesLA);
 				KillTree(firsts, NULL);
 				KillTree(common, NULL);
 				cnt++;
@@ -2114,7 +2053,7 @@ static void PrintAlternatives(NodeList pRules, TREE follow, TREE oneOf, int inde
 						fputs("else", outputFile);
 						startBlock(indent);
 					}
-					GenerateRule(rules->first, follow, NULL, (cnt == 0? indent: indent + 1), generateCode, false, firstNext, usesLA);
+					GenerateRule(ruleName, rules->first, emptyToEndOfRule, follow, (cnt == 0? indent: indent + 1), generateCode, false, firstNext, usesLA);
 					if (cnt != 0) {
 						terminateBlock(indent);
 					}
@@ -2142,13 +2081,11 @@ static void PrintAlternatives(NodeList pRules, TREE follow, TREE oneOf, int inde
 	}
 }
 
-static void CreateTokenSets(Name name, void *dummy)
-{
+static void CreateTokenSets(Name name, void *dummy) {
 #pragma unused(dummy)
 
-	if (name->nameType == identifier)
-	{
-		PrintAlternatives(name->rules, name->follow, idTree, 1, name->name, "", false, NULL, &name->usesLA, name->lineNr);
+	if (name->nameType == identifier) {
+		PrintAlternatives(name, name->rules, true, name->follow, 1, name->name, "", false, NULL, &name->usesLA, name->lineNr);
 	}
 }
 
@@ -2188,29 +2125,43 @@ static void CreateProcs(Name name, void *dummy) {
             doIndent(globalIndent + 1);
             PrintLocalDeclaration(outputFile, llTokenSetTypeString, "ltSet");
 		}
-		PrintAlternatives(name->rules, name->follow, idTree, globalIndent + 1, name->name, "", true, NULL, &dummyLA, name->lineNr);
+		if (HasProperty("debug")) {
+            doIndent(globalIndent + 1);
+			targetLanguage->startFunctionCall(outputFile, "debugTraceStart", NULL, NULL);
+			targetLanguage->nextCallParameter(outputFile);
+			targetLanguage->nextCallParameterSymbol(outputFile, "\"");
+			targetLanguage->nextCallParameterSymbol(outputFile, name->name);
+			targetLanguage->nextCallParameterSymbol(outputFile, "\"");
+			targetLanguage->endFunctionCall(outputFile);
+		}
+		PrintAlternatives(name, name->rules, true, name->follow, globalIndent + 1, name->name, "", true, NULL, &dummyLA, name->lineNr);
 		if (returnType != NULL && returnVariable != NULL) {
             doIndent(globalIndent + 1);
             PrintReturnValue(outputFile, returnVariable->name);
+		}
+		if (HasProperty("debug")) {
+            doIndent(globalIndent + 1);
+			targetLanguage->startFunctionCall(outputFile, "debugTraceEnd", NULL, NULL);
+			targetLanguage->nextCallParameter(outputFile);
+			targetLanguage->nextCallParameterSymbol(outputFile, "\"");
+			targetLanguage->nextCallParameterSymbol(outputFile, name->name);
+			targetLanguage->nextCallParameterSymbol(outputFile, "\"");
+			targetLanguage->endFunctionCall(outputFile);
 		}
         doIndent(globalIndent);
 		fputs("}\n\n", outputFile);
 	}
 }
 
-static void ShowAllRules(void)
-{
+static void ShowAllRules(void) {
 	TREE sym;
 	Name name;
 	NodeList rules;
 
-	for (sym = GetFirstNode(idTree); sym != NULL; sym = GetNextNode(sym))
-	{
+	for (sym = GetFirstNode(idTree); sym != NULL; sym = GetNextNode(sym)) {
 		name = GetKey(sym);
-		if (name->nameType == identifier)
-		{
-			for (rules = name->rules; rules != NULL; rules = rules->rest)
-			{
+		if (name->nameType == identifier) {
+			for (rules = name->rules; rules != NULL; rules = rules->rest) {
 				PrintRule(stdout, name, rules->first);
 			}
 		}
@@ -2238,17 +2189,14 @@ static void DefineProcs(void) {
 	}
 }
 
-static void DefineEnums(void)
-{
+static void DefineEnums(void) {
 	TREE sym;
 	Name name;
 	Boolean prntd = false;
 
-	for (sym = GetFirstNode(idTree); sym != NULL; sym = GetNextNode(sym))
-	{
+	for (sym = GetFirstNode(idTree); sym != NULL; sym = GetNextNode(sym)) {
 		name = GetKey(sym);
-		if (name->nameType == token && name->index > 0)
-		{
+		if (name->nameType == token && name->index > 0) {
 			if (prntd) fputs(",\n", outputFile);
 			fprintf(outputFile, "	%s = %ld", name->name, name->index);
 			prntd = true;
@@ -2257,42 +2205,32 @@ static void DefineEnums(void)
 	if (prntd) fputs("\n", outputFile);
 }
 
-static Boolean HasEnums(void)
-{
+static Boolean HasEnums(void) {
 	TREE sym;
 	Name name;
 
-	for (sym = GetFirstNode(idTree); sym != NULL; sym = GetNextNode(sym))
-	{
+	for (sym = GetFirstNode(idTree); sym != NULL; sym = GetNextNode(sym)) {
 		name = GetKey(sym);
-		if (name->nameType == token && name->index > 0)
-		{
+		if (name->nameType == token && name->index > 0) {
 			return (true);
 		}
 	}
 	return (false);
 }
 
-static void CreateTokenNames(void)
-{
+static void CreateTokenNames(void) {
 	Name name;
 	int i;
 
     PrintArrayDeclaration(outputFile, "static", targetLanguage->stringType, "tokenName", -1, nodeNumber + 2);
 	fputs("\n\t\"IGNORE\",\n", outputFile);
-	for (i = 1; i <= nodeNumber; i++)
-	{
+	for (i = 1; i <= nodeNumber; i++) {
 		name = TokenIndexName(i, true);
-		if (name != NULL && name->nameType == token)
-		{
+		if (name != NULL && name->nameType == token) {
 			fprintf(outputFile, "	\"%s\",\n", name->name);
-		}
-		else if (name != NULL && name->nameType == string)
-		{
+		} else if (name != NULL && name->nameType == string) {
 			fprintf(outputFile, "	%s,\n", name->name);
-		}
-		else
-		{
+		} else {
 			fputs("	\"@&^@#&^\",\n", outputFile);
 		}
 	}
@@ -2300,8 +2238,7 @@ static void CreateTokenNames(void)
 	fprintf(outputFile, "%s%s\n", targetLanguage->endOfArrayLiteral, targetLanguage->terminateDeclaration);
 }
 
-static long int CountNonEmpty(void *key, void *info)
-{
+static long int CountNonEmpty(void *key, void *info) {
 #pragma unused(info)
 
 	return (key == NULL? 0: 1);
@@ -2341,8 +2278,7 @@ static void DefineFunctionList(void) {
 		fputs("static FunctionList functionList[] = {\n", outputFile);
 		for (i = 0; i <= nodeNumber; i++) {
 			name = indexArray[i];
-			if (name == NULL)
-			{
+			if (name == NULL) {
 				fputs("	{NULL, 0},\n", outputFile);
 			} else {
 				fprintf(outputFile, "	{%sFunctions, %ld},\n", name->name, CountTree(name->functions, CountNonEmpty));
@@ -2352,8 +2288,7 @@ static void DefineFunctionList(void) {
 	}
 }
 
-static void DefineKeywordList(void)
-{
+static void DefineKeywordList(void) {
 	TREE sym;
 	Name name;
 	int i;

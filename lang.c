@@ -143,7 +143,10 @@ static void cLanguageEndFunctionDeclaration(FILE* f) {
 
 static void cLanguageStartFunctionCall(FILE* f, const char*functionName, const char* returnType, const char* assignTo) {
     if (returnType != NULL && assignTo != NULL) {
-        fprintf(f, "%s %s = ", returnType, assignTo);
+        fprintf(f, "%s ", returnType);
+    }
+    if (assignTo != NULL) {
+        fprintf(f, "%s = ", assignTo);
     }
     fprintf(f, "%s(", functionName);
     nrFunctionParameters = 0;
@@ -165,12 +168,19 @@ static void cLanguageEndFunctionCall(FILE* f) {
     fprintf(f, ")");
 }
 
-static  void cLanguageResetFunctionCall(FILE* f) {
+static void cLanguageResetFunctionCall(FILE* f) {
     nrFunctionParameters = 0;
 }
 
-static  void cLanguageEmitParameterDeclaration(FILE* f) {
+static void cLanguageEmitParameterDeclaration(FILE* f) {
     fprintf(f, "%s", lastParameterName);
+}
+
+static void cLanguageAssignLastSymbolTo(FILE* f, int indent, Name name) {
+    doIndent(indent);
+    fprintf(f, "char %s[sizeof(lastSymbol)];", name->name);
+    doIndent(indent);
+    fprintf(f, "strcpy(%s, lastSymbol);", name->name);
 }
 
 Language cLanguage = {
@@ -217,7 +227,8 @@ Language cLanguage = {
     cLanguageNextCallParameterSymbol,
     cLanguageEndFunctionCall,
     cLanguageResetFunctionCall,
-    cLanguageEmitParameterDeclaration
+    cLanguageEmitParameterDeclaration,
+    cLanguageAssignLastSymbolTo
 };
 
 static void cppLanguageInit() {
@@ -268,7 +279,8 @@ Language cppLanguage = {
     cLanguageNextCallParameterSymbol,
     cLanguageEndFunctionCall,
     cLanguageResetFunctionCall,
-    cLanguageEmitParameterDeclaration
+    cLanguageEmitParameterDeclaration,
+    cLanguageAssignLastSymbolTo
 };
 
 static void jsLanguageInit() {
@@ -367,7 +379,10 @@ static void jsLanguageEndFunctionDeclaration(FILE* f) {
 
 static void jsLanguageStartFunctionCall(FILE* f, const char*functionName, const char* returnType, const char* assignTo) {
     if (returnType != NULL && assignTo != NULL) {
-        fprintf(f, "var %s = ", assignTo);
+        fprintf(f, "var ");
+    }
+    if (assignTo != NULL) {
+        fprintf(f, "%s = ", assignTo);
     }
     fprintf(f, "%s(", functionName);
     nrFunctionParameters = 0;
@@ -394,6 +409,11 @@ static void jsLanguageResetFunctionCall(FILE* f) {
 }
 
 static void jsLanguageEmitParameterDeclaration(FILE* f) {
+}
+
+static void jsLanguageAssignLastSymbolTo(FILE* f, int indent, Name name) {
+    doIndent(indent);
+    fprintf(f, "var %s = lastSymbol;", name->name);
 }
 
 Language jsLanguage = {
@@ -440,7 +460,8 @@ Language jsLanguage = {
     jsLanguageNextCallParameterSymbol,
     jsLanguageEndFunctionCall,
     jsLanguageResetFunctionCall,
-    jsLanguageEmitParameterDeclaration
+    jsLanguageEmitParameterDeclaration,
+    jsLanguageAssignLastSymbolTo
 };
 
 static void tsLanguageInit() {
@@ -464,7 +485,7 @@ static void tsLanguageLocalDeclaration(FILE* f, const char* type, const char* na
 }
 
 static void tsLanguageLocalDeclarationWithInitialization(FILE* f, const char* type, const char* name, const char* initialValue) {
-    fprintf(f, "var %s: %s = %s", name, type, initialValue);
+    fprintf(f, "let %s: %s = %s", name, type, initialValue);
 }
 
 static void tsLanguageStartFunctionDeclaration(FILE* f, const char* functionName, const char* type) {
@@ -499,6 +520,8 @@ static void tsLanguageEndFunctionDeclaration(FILE* f) {
 static void tsLanguageStartFunctionCall(FILE* f, const char*functionName, const char* returnType, const char* assignTo) {
     if (returnType != NULL && assignTo != NULL) {
         fprintf(f, "let %s: %s = ", assignTo, returnType);
+    } else if (assignTo != NULL) {
+        fprintf(f, "%s = ", assignTo);
     }
     fprintf(f, "%s(", functionName);
     nrFunctionParameters = 0;
@@ -509,6 +532,11 @@ static void tsLanguageResetFunctionCall(FILE* f) {
 }
 
 static void tsLanguageEmitParameterDeclaration(FILE* f) {
+}
+
+static void tsLanguageAssignLastSymbolTo(FILE* f, int indent, Name name) {
+    doIndent(indent);
+    fprintf(f, "let %s: string = lastSymbol;", name->name);
 }
 
 Language tsLanguage = {
@@ -555,7 +583,8 @@ Language tsLanguage = {
     jsLanguageNextCallParameterSymbol,
     jsLanguageEndFunctionCall,
     tsLanguageResetFunctionCall,
-    tsLanguageEmitParameterDeclaration
+    tsLanguageEmitParameterDeclaration,
+    tsLanguageAssignLastSymbolTo
 };
 
 static void goLanguageInit() {
@@ -681,6 +710,8 @@ static void goLanguageEndFunctionDeclaration(FILE* f) {
 static void goLanguageStartFunctionCall(FILE* f, const char*functionName, const char* returnType, const char* assignTo) {
     if (returnType != NULL && assignTo != NULL) {
         fprintf(f, "var %s %s = ", assignTo, returnType);
+    } else if (assignTo != NULL) {
+        fprintf(f, "%s = ", returnType);
     }
     fprintf(f, "%s(", functionName);
     nrFunctionParameters = 0;
@@ -702,11 +733,16 @@ static void goLanguageEndFunctionCall(FILE* f) {
     fputs(")", f);
 }
 
-static  void goLanguageResetFunctionCall(FILE* f) {
+static void goLanguageResetFunctionCall(FILE* f) {
     nrFunctionParameters = 0;
 }
 
-static  void goLanguageEmitParameterDeclaration(FILE* f) {
+static void goLanguageEmitParameterDeclaration(FILE* f) {
+}
+
+static void goLanguageAssignLastSymbolTo(FILE* f, int indent, Name name) {
+    doIndent(indent);
+    fprintf(f, "var %s string = lastSymbol;", name->name);
 }
 
 Language goLanguage = {
@@ -753,7 +789,8 @@ Language goLanguage = {
     goLanguageNextCallParameterSymbol,
     goLanguageEndFunctionCall,
     goLanguageResetFunctionCall,
-    goLanguageEmitParameterDeclaration
+    goLanguageEmitParameterDeclaration,
+    goLanguageAssignLastSymbolTo
 };
 
 static void rustLanguageInit() {
@@ -900,6 +937,8 @@ static void rustLanguageEndFunctionDeclaration(FILE* f) {
 static void rustLanguageStartFunctionCall(FILE* f, const char*functionName, const char* returnType, const char* assignTo) {
     if (returnType != NULL && assignTo != NULL) {
         fprintf(f, "let %s: %s = ", assignTo, returnType);
+    } else if (assignTo != NULL) {
+        fprintf(f, "%s = ", assignTo);
     }
     fprintf(f, "%s(", functionName);
     nrFunctionParameters = 0;
@@ -926,6 +965,11 @@ static void rustLanguageResetFunctionCall(FILE* f) {
 }
 
 static void rustLanguageEmitParameterDeclaration(FILE* f) {
+}
+
+static void rustLanguageAssignLastSymbolTo(FILE* f, int indent, Name name) {
+    doIndent(indent);
+    fprintf(f, "let %s: string = lastSymbol;", name->name);
 }
 
 Language rustLanguage = {
@@ -972,5 +1016,6 @@ Language rustLanguage = {
     rustLanguageNextCallParameterSymbol,
     rustLanguageEndFunctionCall,
     rustLanguageResetFunctionCall,
-    rustLanguageEmitParameterDeclaration
+    rustLanguageEmitParameterDeclaration,
+    rustLanguageAssignLastSymbolTo
 };

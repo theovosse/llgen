@@ -4,7 +4,6 @@ type LLTokenSet = number[];
 
 type KeyWordList = {[keyword:string]: number}|undefined;
 
-
 %%const endOfInput = %N;
 %%const nrTokens = %N;
 %%const endOfInputSet = [%E]; 
@@ -49,8 +48,8 @@ export function sprintf(args: any): string {
 }
 
 %{llerror
-function llerror(...) {
-    let msg = sprintf(arguments);
+function llerror(... args: any[]): void {
+    let msg = sprintf(args);
 
     console.log("llerror " + lastSymbolPos.line + ":" + lastSymbolPos.position + ": " + msg);
 }
@@ -105,6 +104,9 @@ function tokenInCommon(a: LLTokenSet, b: LLTokenSet): boolean {
 function waitForToken(set: LLTokenSet, follow: LLTokenSet): void {
     let ltSet: LLTokenSet = uniteTokenSets(set, follow);
 
+%{debug
+    console.log(debugIndent + "waitForToken", tokenSetToString(set), tokenSetToString(follow));
+%}debug
     while (currSymbol !== endOfInputSet && !tokenInCommon(currSymbol, ltSet)) {
 %{regexpcontext
         nextSymbol(set, follow);
@@ -220,9 +222,6 @@ function nextSymbol(): void
             state.state = undefined;
         } else if ((token = nextState(state, ch)) !== undefined) {
 %{regexpcontext
-%{keywords
-            token = lLKeyWord(token);
-%}keywords
             let prio = tokenInCommon(token, firstOrFollow)? 0: 1;
             recognizedTokens[prio] = token;
             bufferEnds[prio] = bufferPos;
@@ -235,6 +234,9 @@ function nextSymbol(): void
         if (state.state === undefined) {
             if (atEOF && bufferFill == 0) {
                 currSymbol = endOfInputSet;
+%{debug
+                console.log(debugIndent + "nextSymbol: EOF");
+%}debug
                 return;
             }
 %{regexpcontext
@@ -249,6 +251,9 @@ function nextSymbol(): void
                 currSymbol = recognizedTokens[0];
 %}!keywords
                 bufferEnd = bufferEnds[0];
+%{debug
+                console.log(debugIndent + "nextSymbol prio 0:", '"' + debugPrintable(scanBuffer.slice(0, bufferEnd)) + '"', tokenSetToString(currSymbol));
+%}debug
                 return;
             } else if (recognizedTokens[1] !== undefined && notEmpty(recognizedTokens[1])) {
 %{keywords
@@ -258,6 +263,9 @@ function nextSymbol(): void
                 currSymbol = recognizedTokens[1];
 %}!keywords
                 bufferEnd = bufferEnds[1];
+%{debug
+                console.log(debugIndent + "nextSymbol prio 1:", '"' + debugPrintable(scanBuffer.slice(0, bufferEnd)) + '"', tokenSetToString(currSymbol));
+%}debug
                 return;
             }
 %}regexpcontext
@@ -272,6 +280,9 @@ function nextSymbol(): void
 %{!keywords
                 currSymbol = recognizedToken;
 %}!keywords
+%{debug
+                console.log(debugIndent + "nextSymbol:", '"' + debugPrintable(scanBuffer.slice(0, bufferEnd)) + '"', tokenSetToString(currSymbol));
+%}debug
                 return;
             }
 %}!regexpcontext
@@ -299,14 +310,20 @@ function nextSymbol(): void
         }
     }
     currSymbol = endOfInputSet;
+%{debug
+    console.log(debugIndent + "nextSymbol: EOF");
+%}debug
 }
 
-function getToken(token: number, set: LLTokenSet, follow: LLTokenSet): void {
-    let ltSet: LLTokenSet = uniteTokenSets(set, follow);
+function getToken(token: number, firstNext: LLTokenSet, follow: LLTokenSet, firstNextEmpty: boolean): void {
+    let ltSet: LLTokenSet = firstNextEmpty? uniteTokenSets(firstNext, follow): firstNext;
 %{regexpcontext
     let tokenSet: LLTokenSet = makeTokenSet(token);
 %}regexpcontext
 
+%{debug
+    console.log(debugIndent + "getToken", tokenName[token], tokenSetToString(firstNext), tokenSetToString(follow), firstNextEmpty, llLineNumber + ":" + llLinePosition);
+%}debug
     while (currSymbol != endOfInputSet && !memberTokenSet(token, currSymbol) &&
            !tokenInCommon(currSymbol, ltSet)) {
 %{regexpcontext
@@ -323,7 +340,7 @@ function getToken(token: number, set: LLTokenSet, follow: LLTokenSet): void {
         llerror("token expected: %s", tokenName[token]);
     } else {
 %{regexpcontext
-        nextSymbol(set, follow);
+        nextSymbol(ltSet, follow);
 %}regexpcontext
 %{!regexpcontext
         nextSymbol();
@@ -342,6 +359,27 @@ function toSymbolList(set: LLTokenSet): string[] {
     return list;
 }
 
+export function tokenSetToString(set: LLTokenSet): string {
+    return "{" + toSymbolList(set).join(",") + "}";
+}
+
+%{debug
+let debugIndent = "";
+function debugTraceStart(symbol: string): void {
+    console.log(debugIndent + "[ " + symbol);
+    debugIndent += "  ";
+}
+
+function debugTraceEnd(symbol: string): void {
+    debugIndent = debugIndent.slice(0, -2);
+    console.log(debugIndent + "] " + symbol);
+}
+
+function debugPrintable(str: string): string {
+    return str.replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/\r/g, "\\r");
+}
+
+%}debug
 %parsefunctions
 
 %exitcode

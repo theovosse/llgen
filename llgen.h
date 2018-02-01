@@ -6,8 +6,7 @@
 #define yyoverflow(str, a, b, c, d, e) yyerror(str)
 #endif
 
-typedef enum NameType
-{
+typedef enum NameType {
     identifier,
     string,
     output,
@@ -16,8 +15,7 @@ typedef enum NameType
     function
 } NameType;
 
-typedef enum NodeType
-{
+typedef enum NodeType {
     single,
     option,
     sequence,
@@ -30,14 +28,12 @@ typedef struct Node *Node;
 typedef struct NodeList *NodeList;
 typedef struct RuleResult *RuleResult;
 
-struct Node
-{
+struct Node {
     short int lineNr;
     NodeType nodeType;
     Node arglist;
     Name assignTo;
-    union
-    {
+    union {
         Name name;
         Node sub;
         NodeList alternatives;
@@ -47,22 +43,19 @@ struct Node
     Node next;
 };
 
-struct NodeList
-{
+struct NodeList {
     Node first;
     NodeList rest;
     Boolean empty;
 };
 
-struct RuleResult
-{
+struct RuleResult {
     Name returnVariable;
     Name returnType;
     Name initialValue;
 };
 
-struct Name
-{
+struct Name {
     char *name;
     TREE first;
     TREE follow;
@@ -70,7 +63,8 @@ struct Name
     int lineNr;
     long int index;
     Boolean empty;
-    Boolean usesLA;
+    Boolean usesLA; ///< when true, function calls uniteTokenSets, so C needs a
+                    ///< declaration of an auxiliary variable.
     NameType nameType;
     Node arglist;
     int nrParameters;
