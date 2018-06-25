@@ -39,17 +39,29 @@ The code is POSIX compliant, I hope, so run `make llgen` should do it, but it's 
 
     `expr(context any) -> result string = { "" }:`
 
-  would receive a parameter `context` when called (provided by the grammar author) and return a value in the local variable `result` which would be initialized with "".
+  would receive a parameter `context` when called (provided by the grammar author) and return a value in the local variable `result` which would be initialized with "". The call would have to look like this:
+
+    `rule: ... expr(some_context) -> expr_result ...`
+
+  In the code following that call, `expr_result` will be available for use.
+
+- Comment must be placed between `/*` and `*/`.
 
 # Usage
 
 Compile a grammar using
 
-    llgen [options] gram.ll
+    llgen [options] gram.ll [outputfile.ext]
 
-The options are binary: `+a` adds an option, `-a` removes it. The target language is an option, of which you should specify only one: `+c`, `+cpp`, `+js`, `+ts`, or `+go`. C is the default.
+The options are binary: `+a` adds an option, `-a` removes it. The target language is an option, of which you should specify only one: `+c`, `+cpp`, `+js`, `+ts`, or `+go`. C is the default. The output file by default has the same name as the input file, but with the extension for the target language.
 
 Other options are `+/-llerror` to include or exclude a default error message function, `+/-main` to include a simple main() function (or not), and some to set the type of input (`stringinput`, `noinput`) which select between reading from a file (the default), from a string, or using an external function.
+
+### Example
+
+The following command generates a typescript file that does not contain main, nor the default llerror from cdl.ll:
+
+    llgen -llerror -main +ts cdl.ll
 
 # Skeleton files
 
@@ -58,3 +70,7 @@ The different languages are generated via dedicated functions in lang.c and skel
 # Unicode
 
 The C/C++ target also has the option for unicode input, but that doesn't work very well.
+
+# IDE support
+
+There's also extensive support for editing in VSCode, but you'll have to build and install the language server yourself. It's in the folder llgen-language-server.
