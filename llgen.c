@@ -1763,8 +1763,10 @@ static void GenerateRule(Name ruleName, Node rule, Boolean emptyToEndOfRule, TRE
 					if (generateCode) {
 						RuleResult res = rule->element.name->ruleResult;
 						Name returnType = res == NULL? NULL: res->returnType;
+						Name assignTo = rule->assignTo;
+						Boolean assignToRuleOutput = assignTo != NULL && ruleName->ruleResult != NULL && ruleName->ruleResult->returnVariable != NULL && strcmp(assignTo->name, ruleName->ruleResult->returnVariable->name) == 0;
 						doIndent(indent);
-						int nrParameters = openFunctionCall(outputFile, rule->element.name->name, rule->arglist, returnType, rule->assignTo, ruleName);
+						int nrParameters = openFunctionCall(outputFile, rule->element.name->name, rule->arglist, assignToRuleOutput? NULL: returnType, rule->assignTo, ruleName);
 						if (nrParameters != rule->element.name->nrParameters) {
 							fprintf(stderr, "%s:%d: error: wrong number of parameters\n", inputFileName, rule->lineNr);
 						}
@@ -1824,7 +1826,8 @@ static void GenerateRule(Name ruleName, Node rule, Boolean emptyToEndOfRule, TRE
 						targetLanguage->endFunctionCall(outputFile);
 						fputs(targetLanguage->terminateStatement, outputFile);
 						if (rule->assignTo != NULL) {
-							targetLanguage->assignLastSymbolTo(outputFile, indent, rule->assignTo);
+							Boolean noDecl = rule->assignTo != NULL && ruleName->ruleResult != NULL && ruleName->ruleResult->returnVariable != NULL && strcmp(rule->assignTo->name, ruleName->ruleResult->returnVariable->name) == 0;
+							targetLanguage->assignLastSymbolTo(outputFile, indent, rule->assignTo, noDecl);
 						}
 					} else {
 						if (empty2 && emptyToEndOfRule && lFirstNext != NULL) {

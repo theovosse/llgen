@@ -176,9 +176,11 @@ static void cLanguageEmitParameterDeclaration(FILE* f) {
     fprintf(f, "%s", lastParameterName);
 }
 
-static void cLanguageAssignLastSymbolTo(FILE* f, int indent, Name name) {
-    doIndent(indent);
-    fprintf(f, "char %s[sizeof(lastSymbol)];", name->name);
+static void cLanguageAssignLastSymbolTo(FILE* f, int indent, Name name, Boolean noDecl) {
+    if (!noDecl) {
+        doIndent(indent);
+        fprintf(f, "char %s[sizeof(lastSymbol)];", name->name);
+    }
     doIndent(indent);
     fprintf(f, "strcpy(%s, lastSymbol);", name->name);
 }
@@ -411,9 +413,13 @@ static void jsLanguageResetFunctionCall(FILE* f) {
 static void jsLanguageEmitParameterDeclaration(FILE* f) {
 }
 
-static void jsLanguageAssignLastSymbolTo(FILE* f, int indent, Name name) {
+static void jsLanguageAssignLastSymbolTo(FILE* f, int indent, Name name, Boolean noDecl) {
     doIndent(indent);
-    fprintf(f, "var %s = lastSymbol;", name->name);
+    if (noDecl) {
+        fprintf(f, "%s = lastSymbol;", name->name);
+    } else {
+        fprintf(f, "var %s = lastSymbol;", name->name);
+    }
 }
 
 Language jsLanguage = {
@@ -534,9 +540,13 @@ static void tsLanguageResetFunctionCall(FILE* f) {
 static void tsLanguageEmitParameterDeclaration(FILE* f) {
 }
 
-static void tsLanguageAssignLastSymbolTo(FILE* f, int indent, Name name) {
+static void tsLanguageAssignLastSymbolTo(FILE* f, int indent, Name name, Boolean noDecl) {
     doIndent(indent);
-    fprintf(f, "let %s: string = lastSymbol;", name->name);
+    if (noDecl) {
+        fprintf(f, "%s = lastSymbol;", name->name);
+    } else {
+        fprintf(f, "let %s: string = lastSymbol;", name->name);
+    }
 }
 
 Language tsLanguage = {
@@ -740,9 +750,13 @@ static void goLanguageResetFunctionCall(FILE* f) {
 static void goLanguageEmitParameterDeclaration(FILE* f) {
 }
 
-static void goLanguageAssignLastSymbolTo(FILE* f, int indent, Name name) {
+static void goLanguageAssignLastSymbolTo(FILE* f, int indent, Name name, Boolean noDecl) {
     doIndent(indent);
-    fprintf(f, "var %s string = lastSymbol;", name->name);
+    if (noDecl) {
+        fprintf(f, "%s = lastSymbol;", name->name);
+    } else {
+        fprintf(f, "var %s string = lastSymbol;", name->name);
+    }
 }
 
 Language goLanguage = {
@@ -967,9 +981,13 @@ static void rustLanguageResetFunctionCall(FILE* f) {
 static void rustLanguageEmitParameterDeclaration(FILE* f) {
 }
 
-static void rustLanguageAssignLastSymbolTo(FILE* f, int indent, Name name) {
+static void rustLanguageAssignLastSymbolTo(FILE* f, int indent, Name name, Boolean noDecl) {
     doIndent(indent);
-    fprintf(f, "let %s: string = lastSymbol;", name->name);
+    if (noDecl) {
+        fprintf(f, "%s = lastSymbol;", name->name);
+    } else {
+        fprintf(f, "let %s: string = lastSymbol;", name->name);
+    }
 }
 
 Language rustLanguage = {
