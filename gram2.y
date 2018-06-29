@@ -49,11 +49,11 @@ gramelt:
 	};
 
 rule: lhs colonsym rhs periodsym { InsertSymbol($1->name, $3, true, identifier); } |
-      identifier equalsym stringsym periodsym { AssignString($1, $3); } |
+      identifier equalsym stringsym periodsym { AssignString($1, $3); $3->isTerminal = true; } |
       identifier equalsym stringsym keywordsym identifier periodsym { KeywordString($1, $3, $5); } |
       identifier equalsym identifier lparsym identifier rparsym periodsym { Function($1, $3, $5); } |
       identifier subtokensym identifier periodsym { KeywordString($1, NULL, $3); } |
-      ignoresym stringsym periodsym { $2->index = -1; } ;
+      ignoresym stringsym periodsym { $2->index = -1; $2->isTerminal = true; } ;
 
 identifier: identifiersym {
 		$$ = InsertSymbol($1, NULL, false, identifier);
@@ -156,6 +156,7 @@ single_element:
 		$$->assignTo = $3;
 	} |
 	stringsym {
+		$1->isTerminal = true;
 		$$ = MakeNode(lineNumber, single, $1, NULL);
 	} |
 	lparsym rhs rparsym {

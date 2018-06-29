@@ -65,6 +65,7 @@ struct Name {
     Boolean empty;
     Boolean usesLA; ///< when true, function calls uniteTokenSets, so C needs a
                     ///< declaration of an auxiliary variable.
+    Boolean isTerminal; ///< When true, scanner token is generated
     NameType nameType;
     Node arglist;
     int nrParameters;

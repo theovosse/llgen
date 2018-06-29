@@ -18,7 +18,7 @@
 #include "storage.h"
 #include "avl3.h"
 #include "llgen.h"
-#include "gram.tab.h"
+#include "gram2.tab.h"
 #include "regexp.h"
 #include "lang.h"
 
@@ -382,6 +382,7 @@ Name MakeName(char *str, int index, NameType nameType, short int lineNr) {
 	name->usesLA = false;
 	name->functions = NULL;
 	name->nrParameters = 0;
+	name->isTerminal = false;
 	return (name);
 }
 
@@ -1445,7 +1446,7 @@ static void CompileScanner(void) {
 
 	for (sym = GetFirstNode(idTree); sym != NULL; sym = GetNextNode(sym)) {
 		name = GetKey(sym);
-		if (name->nameType == string && name->index != 0) {
+		if (name->nameType == string && name->index != 0 && name->isTerminal) {
 			regexpcopy(regexpbuf, name->name);
 			if ((res = AddRegExp(nfa, regexpbuf, (void *) name->index)) != 0) {
 				fprintf(stderr, "%s:%d: %s\n", inputFileName, name->lineNr, regExpError[res]);

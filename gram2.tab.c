@@ -484,9 +484,9 @@ static const yytype_uint8 yyrline[] =
        0,    39,    39,    39,    42,    46,    51,    52,    53,    54,
       55,    56,    58,    62,    74,    78,    83,    85,    90,    92,
       97,    99,   104,   107,   112,   113,   115,   116,   119,   122,
-     126,   129,   132,   136,   139,   144,   147,   153,   158,   161,
-     172,   173,   174,   175,   176,   177,   178,   179,   180,   181,
-     182,   185,   188,   192,   198,   201
+     126,   129,   132,   136,   139,   144,   147,   153,   158,   162,
+     173,   174,   175,   176,   177,   178,   179,   180,   181,   182,
+     183,   186,   189,   193,   199,   202
 };
 #endif
 
@@ -1471,7 +1471,7 @@ yyreduce:
 
   case 7:
 #line 52 "gram2.y"
-    { AssignString((yyvsp[(1) - (4)].name), (yyvsp[(3) - (4)].name)); ;}
+    { AssignString((yyvsp[(1) - (4)].name), (yyvsp[(3) - (4)].name)); (yyvsp[(3) - (4)].name)->isTerminal = true; ;}
     break;
 
   case 8:
@@ -1491,7 +1491,7 @@ yyreduce:
 
   case 11:
 #line 56 "gram2.y"
-    { (yyvsp[(2) - (3)].name)->index = -1; ;}
+    { (yyvsp[(2) - (3)].name)->index = -1; (yyvsp[(2) - (3)].name)->isTerminal = true; ;}
     break;
 
   case 12:
@@ -1685,12 +1685,13 @@ yyreduce:
   case 38:
 #line 158 "gram2.y"
     {
+		(yyvsp[(1) - (1)].name)->isTerminal = true;
 		(yyval.node) = MakeNode(lineNumber, single, (yyvsp[(1) - (1)].name), NULL);
 	;}
     break;
 
   case 39:
-#line 161 "gram2.y"
+#line 162 "gram2.y"
     {
 		(yyval.node) = MakeNode(lineNumber, alternative, (yyvsp[(2) - (3)].nodeList), NULL);
 		if (!containsGrammarSymbol((yyvsp[(2) - (3)].nodeList))) {
@@ -1703,69 +1704,69 @@ yyreduce:
     break;
 
   case 40:
-#line 172 "gram2.y"
-    { (yyval.node) = MakeNode(nrBlanks, single, MakeString(yytext), NULL); ;}
-    break;
-
-  case 41:
 #line 173 "gram2.y"
     { (yyval.node) = MakeNode(nrBlanks, single, MakeString(yytext), NULL); ;}
     break;
 
-  case 42:
+  case 41:
 #line 174 "gram2.y"
     { (yyval.node) = MakeNode(nrBlanks, single, MakeString(yytext), NULL); ;}
     break;
 
-  case 43:
+  case 42:
 #line 175 "gram2.y"
     { (yyval.node) = MakeNode(nrBlanks, single, MakeString(yytext), NULL); ;}
     break;
 
-  case 44:
+  case 43:
 #line 176 "gram2.y"
     { (yyval.node) = MakeNode(nrBlanks, single, MakeString(yytext), NULL); ;}
     break;
 
-  case 45:
+  case 44:
 #line 177 "gram2.y"
     { (yyval.node) = MakeNode(nrBlanks, single, MakeString(yytext), NULL); ;}
     break;
 
-  case 46:
+  case 45:
 #line 178 "gram2.y"
     { (yyval.node) = MakeNode(nrBlanks, single, MakeString(yytext), NULL); ;}
     break;
 
-  case 47:
+  case 46:
 #line 179 "gram2.y"
     { (yyval.node) = MakeNode(nrBlanks, single, MakeString(yytext), NULL); ;}
     break;
 
-  case 48:
+  case 47:
 #line 180 "gram2.y"
     { (yyval.node) = MakeNode(nrBlanks, single, MakeString(yytext), NULL); ;}
     break;
 
-  case 49:
+  case 48:
 #line 181 "gram2.y"
     { (yyval.node) = MakeNode(nrBlanks, single, MakeString(yytext), NULL); ;}
     break;
 
-  case 50:
+  case 49:
 #line 182 "gram2.y"
     { (yyval.node) = MakeNode(nrBlanks, single, MakeString(yytext), NULL); ;}
     break;
 
+  case 50:
+#line 183 "gram2.y"
+    { (yyval.node) = MakeNode(nrBlanks, single, MakeString(yytext), NULL); ;}
+    break;
+
   case 51:
-#line 185 "gram2.y"
+#line 186 "gram2.y"
     {
 		(yyval.node) = (yyvsp[(1) - (1)].node);
 	;}
     break;
 
   case 52:
-#line 188 "gram2.y"
+#line 189 "gram2.y"
     {
 		(yyval.node) = AppendNode(MakeNode(0, single, MakeString("("), (yyvsp[(2) - (3)].node)),
 						MakeNode(0, single, MakeString(")"), NULL));
@@ -1773,7 +1774,7 @@ yyreduce:
     break;
 
   case 53:
-#line 192 "gram2.y"
+#line 193 "gram2.y"
     {
 		(yyval.node) = AppendNode(MakeNode(0, single, MakeString("["), (yyvsp[(2) - (3)].node)),
 						MakeNode(0, single, MakeString("]"), NULL));
@@ -1781,14 +1782,14 @@ yyreduce:
     break;
 
   case 54:
-#line 198 "gram2.y"
+#line 199 "gram2.y"
     {
 		(yyval.node) = NULL;
 	;}
     break;
 
   case 55:
-#line 201 "gram2.y"
+#line 202 "gram2.y"
     {
 		(yyval.node) = AppendNode((yyvsp[(1) - (2)].node), (yyvsp[(2) - (2)].node));
 	;}
@@ -1796,7 +1797,7 @@ yyreduce:
 
 
 /* Line 1267 of yacc.c.  */
-#line 1800 "gram2.tab.c"
+#line 1801 "gram2.tab.c"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);

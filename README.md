@@ -47,6 +47,19 @@ The code is POSIX compliant, I hope, so run `make llgen` should do it, but it's 
 
 - Comment must be placed between `/*` and `*/`.
 
+- If nothing is specified, whitespace is significant like any character. To ignore   a string, add
+
+  `IGNORE "regexp".`
+
+  to the grammar. This can not only be used to ignore whitespace, but also
+  comment symbols, e.g.
+
+    `IGNORE "[ \t\r\n]+".`
+
+    `IGNORE "//.*".`
+  
+  Note that these strings are ignored, but do separate tokens.
+
 # Usage
 
 Compile a grammar using
@@ -74,3 +87,19 @@ The C/C++ target also has the option for unicode input, but that doesn't work ve
 # IDE support
 
 There's also extensive support for editing in VSCode, but you'll have to build and install the language server yourself. It's in the folder llgen-language-server.
+
+# About the code
+
+LLGen is written entirely in C, because that was the only compiler I had when
+I started it. Although rewriting in C++ could make some parts more readable,
+I decided it's not worth it, as there was nothing to be gained from using
+inheritance, until I added support for multiple languages. Using templates
+will make some of the code a bit easier, but it's never been worth a complete
+rewrite.
+
+So:
+- rules and are represented as a tree of nodes
+- symbol sets are AVL trees (sorting/comparison is passed along as a function)
+
+The regexp code is even older, and uses the classic regexps -> NFA -> DFA
+algorithm. It even has an option to generate 68k machine code from the DFA.
