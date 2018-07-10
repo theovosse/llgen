@@ -835,8 +835,8 @@ static void PrintLocalDeclaration(FILE* f, const char* type, const char* name) {
     fputs(targetLanguage->terminateDeclaration, f);
 }
 
-static void PrintLocalDeclarationWithInitialization(FILE* f, const char* type, const char* name, const char* init) {
-    targetLanguage->localDeclarationWithInitialization(f, type, name, init);
+static void PrintLocalDeclarationWithInitialization(FILE* f, const Name type, const Name name, const Name init) {
+    targetLanguage->localDeclarationWithInitialization(f, type->name, name->name, init != NULL? init->name: NULL);
     fputs(targetLanguage->terminateDeclaration, f);
 }
 
@@ -1860,7 +1860,9 @@ static void GenerateRule(Name ruleName, Node rule, Boolean emptyToEndOfRule, TRE
 						if (!rule->element.sub->preferShift) {
 							doIndent(indent + 1);
 							fputs("/* Not an LL(1)-grammar (first/followers of option overlaps) */\n", outputFile);
-							fprintf(stderr, "%s:%d: not an LL(1)-grammar (first/followers of option overlap)\n", inputFileName, rule->lineNr);
+							fprintf(stderr, "%s:%d: not an LL(1)-grammar (first/followers of option overlap): ", inputFileName, rule->lineNr);
+							PrintTree(stderr, overlap);
+							fputc('\n', stderr);
 							notLLError = true;
 						}
 						KillTree(overlap, NULL);
@@ -1896,7 +1898,9 @@ static void GenerateRule(Name ruleName, Node rule, Boolean emptyToEndOfRule, TRE
 						if (!rule->preferShift) {
 							doIndent(indent);
 							fputs("/* Not an LL(1)-grammar (first/followers of sequence overlap) */\n", outputFile);
-							fprintf(stderr, "%s:%d: not an LL(1)-grammar (first/followers of sequence overlap)\n", inputFileName, rule->lineNr);
+							fprintf(stderr, "%s:%d: not an LL(1)-grammar (first/followers of sequence overlap): ", inputFileName, rule->lineNr);
+							PrintTree(stderr, overlap);
+							fputc('\n', stderr);
 							notLLError = true;
 						}
 						KillTree(overlap, NULL);
@@ -2123,7 +2127,7 @@ static void CreateProcs(Name name, void *dummy) {
         startBlock(globalIndent);
 		if (returnType != NULL && returnVariable != NULL) {
             doIndent(globalIndent + 1);
-            PrintLocalDeclarationWithInitialization(outputFile, returnType->name, returnVariable->name, initialValue->name);
+            PrintLocalDeclarationWithInitialization(outputFile, returnType, returnVariable, initialValue);
 		}
 		if (name->usesLA && targetLanguage->requiresLocalLTSetStorage) {
             doIndent(globalIndent + 1);

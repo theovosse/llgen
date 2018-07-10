@@ -66,7 +66,6 @@ type LLTokenSet = number[];
 
 type KeyWordList = {[keyword:string]: number}|undefined;
 
-
 const endOfInput = 29;
 const nrTokens = 29;
 const endOfInputSet = [0x20000000]; 
@@ -934,8 +933,8 @@ function nextSymbol(): void
     currSymbol = endOfInputSet;
 }
 
-function getToken(token: number, set: LLTokenSet, follow: LLTokenSet): void {
-    let ltSet: LLTokenSet = uniteTokenSets(set, follow);
+function getToken(token: number, firstNext: LLTokenSet, follow: LLTokenSet, firstNextEmpty: boolean): void {
+    let ltSet: LLTokenSet = firstNextEmpty? uniteTokenSets(firstNext, follow): firstNext;
 
     while (currSymbol != endOfInputSet && !memberTokenSet(token, currSymbol) &&
            !tokenInCommon(currSymbol, ltSet)) {
@@ -960,6 +959,10 @@ function toSymbolList(set: LLTokenSet): string[] {
         }
     }
     return list;
+}
+
+export function tokenSetToString(set: LLTokenSet): string {
+    return "{" + toSymbolList(set).join(",") + "}";
 }
 
 let llTokenSet20: number[] = [0x0203DF0A]; /* assign colon identifier is left_bracket left_parenthesis number output period semicolon single_token string */
@@ -1012,18 +1015,18 @@ let llTokenSet66: number[] = [0x0203DF8A]; /* assign colon comma identifier is l
 
 
 function actual_parameters(follow: LLTokenSet): void {
-	getToken(1/*left_parenthesis*/, llTokenSet20, follow);
+	getToken(1/*left_parenthesis*/, llTokenSet20, llTokenSet20, false);
 	for (;;) {
 		do {
-			wildcard(uniteTokenSets(follow, llTokenSet21));
+			wildcard(llTokenSet21);
 			waitForToken(uniteTokenSets(llTokenSet21, follow), follow);
 		} while (tokenInCommon(currSymbol, llTokenSet20));
 		if (!tokenInCommon(currSymbol, llTokenSet22)) {
 			break;
 		}
-		getToken(7/*comma*/, llTokenSet20, follow);
+		getToken(7/*comma*/, llTokenSet20, llTokenSet20, false);
 	}
-	getToken(2/*right_parenthesis*/, llTokenSet23, follow);
+	getToken(2/*right_parenthesis*/, llTokenSet23, follow, true);
 }
 
 
@@ -1034,7 +1037,7 @@ function alternative(follow: LLTokenSet): void {
 			if (!tokenInCommon(currSymbol, llTokenSet22)) {
 				break;
 			}
-			getToken(7/*comma*/, llTokenSet24, follow);
+			getToken(7/*comma*/, llTokenSet24, llTokenSet24, false);
 		}
 	}
 }
@@ -1046,20 +1049,20 @@ function alternatives(follow: LLTokenSet): void {
 		if (!tokenInCommon(currSymbol, llTokenSet25)) {
 			break;
 		}
-		getToken(10/*semicolon*/, llTokenSet26, follow);
+		getToken(10/*semicolon*/, llTokenSet26, uniteTokenSets(follow, llTokenSet26), true);
 	}
 }
 
 
 function code(follow: LLTokenSet): void {
-	getToken(5/*left_brace*/, llTokenSet27, follow);
+	getToken(5/*left_brace*/, llTokenSet27, llTokenSet27, false);
 	if (tokenInCommon(currSymbol, llTokenSet28)) {
 		do {
-			code_element(uniteTokenSets(follow, llTokenSet27));
+			code_element(llTokenSet27);
 			waitForToken(uniteTokenSets(llTokenSet27, follow), follow);
 		} while (tokenInCommon(currSymbol, llTokenSet28));
 	}
-	getToken(6/*right_brace*/, llTokenSet23, follow);
+	getToken(6/*right_brace*/, llTokenSet23, follow, true);
 }
 
 
@@ -1067,34 +1070,34 @@ function code_element(follow: LLTokenSet): void {
 	if (tokenInCommon(currSymbol, llTokenSet29)) {
 		non_bracket_symbol(follow);
 	} else if (tokenInCommon(currSymbol, llTokenSet22)) {
-		getToken(7/*comma*/, llTokenSet23, follow);
+		getToken(7/*comma*/, llTokenSet23, follow, true);
 	} else if (tokenInCommon(currSymbol, llTokenSet30)) {
-		getToken(1/*left_parenthesis*/, llTokenSet31, follow);
+		getToken(1/*left_parenthesis*/, llTokenSet31, llTokenSet31, false);
 		if (tokenInCommon(currSymbol, llTokenSet28)) {
 			do {
-				code_element(uniteTokenSets(follow, llTokenSet31));
+				code_element(llTokenSet31);
 				waitForToken(uniteTokenSets(llTokenSet31, follow), follow);
 			} while (tokenInCommon(currSymbol, llTokenSet28));
 		}
-		getToken(2/*right_parenthesis*/, llTokenSet23, follow);
+		getToken(2/*right_parenthesis*/, llTokenSet23, follow, true);
 	} else if (tokenInCommon(currSymbol, llTokenSet32)) {
-		getToken(3/*left_bracket*/, llTokenSet33, follow);
+		getToken(3/*left_bracket*/, llTokenSet33, llTokenSet33, false);
 		if (tokenInCommon(currSymbol, llTokenSet28)) {
 			do {
-				code_element(uniteTokenSets(follow, llTokenSet33));
+				code_element(llTokenSet33);
 				waitForToken(uniteTokenSets(llTokenSet33, follow), follow);
 			} while (tokenInCommon(currSymbol, llTokenSet28));
 		}
-		getToken(4/*right_bracket*/, llTokenSet23, follow);
+		getToken(4/*right_bracket*/, llTokenSet23, follow, true);
 	} else if (tokenInCommon(currSymbol, llTokenSet34)) {
-		getToken(5/*left_brace*/, llTokenSet27, follow);
+		getToken(5/*left_brace*/, llTokenSet27, llTokenSet27, false);
 		if (tokenInCommon(currSymbol, llTokenSet28)) {
 			do {
-				code_element(uniteTokenSets(follow, llTokenSet27));
+				code_element(llTokenSet27);
 				waitForToken(uniteTokenSets(llTokenSet27, follow), follow);
 			} while (tokenInCommon(currSymbol, llTokenSet28));
 		}
-		getToken(6/*right_brace*/, llTokenSet23, follow);
+		getToken(6/*right_brace*/, llTokenSet23, follow, true);
 	} else {
 		llerror("syntax error after %s %.*s", lastSymbol, bufferEnd, scanBuffer);
 	}
@@ -1104,19 +1107,19 @@ function code_element(follow: LLTokenSet): void {
 function element(follow: LLTokenSet): void {
 	if (tokenInCommon(currSymbol, llTokenSet35)) {
 		if (tokenInCommon(currSymbol, llTokenSet36)) {
-			getToken(24/*shift_sym*/, llTokenSet37, follow);
+			getToken(24/*shift_sym*/, llTokenSet37, llTokenSet37, false);
 		}
 		single_element(uniteTokenSets(follow, llTokenSet38));
 		if (tokenInCommon(currSymbol, llTokenSet38)) {
 			if (tokenInCommon(currSymbol, llTokenSet39)) {
-				getToken(18/*chain_sym*/, llTokenSet37, follow);
+				getToken(18/*chain_sym*/, llTokenSet37, llTokenSet37, false);
 				single_element(follow);
 			} else if (tokenInCommon(currSymbol, llTokenSet40)) {
-				getToken(21/*option_sym*/, llTokenSet23, follow);
+				getToken(21/*option_sym*/, llTokenSet23, follow, true);
 			} else if (tokenInCommon(currSymbol, llTokenSet41)) {
-				getToken(20/*sequence_sym*/, llTokenSet40, follow);
+				getToken(20/*sequence_sym*/, llTokenSet40, uniteTokenSets(follow, llTokenSet40), true);
 				if (tokenInCommon(currSymbol, llTokenSet40)) {
-					getToken(21/*option_sym*/, llTokenSet23, follow);
+					getToken(21/*option_sym*/, llTokenSet23, follow, true);
 				}
 			} else {
 				llerror("syntax error after %s %.*s", lastSymbol, bufferEnd, scanBuffer);
@@ -1125,7 +1128,7 @@ function element(follow: LLTokenSet): void {
 	} else if (tokenInCommon(currSymbol, llTokenSet34)) {
 		code(follow);
 	} else if (tokenInCommon(currSymbol, llTokenSet42)) {
-		getToken(16/*output*/, llTokenSet23, follow);
+		getToken(16/*output*/, llTokenSet23, follow, true);
 	} else {
 		llerror("element");
 	}
@@ -1133,33 +1136,35 @@ function element(follow: LLTokenSet): void {
 
 
 function formal_parameters(follow: LLTokenSet): void {
-	getToken(1/*left_parenthesis*/, llTokenSet20, follow);
+	getToken(1/*left_parenthesis*/, llTokenSet20, llTokenSet20, false);
 	for (;;) {
 		do {
-			wildcard(uniteTokenSets(follow, llTokenSet21));
+			wildcard(llTokenSet21);
 			waitForToken(uniteTokenSets(llTokenSet21, follow), follow);
 		} while (tokenInCommon(currSymbol, llTokenSet20));
 		if (!tokenInCommon(currSymbol, llTokenSet22)) {
 			break;
 		}
-		getToken(7/*comma*/, llTokenSet20, follow);
+		getToken(7/*comma*/, llTokenSet20, llTokenSet20, false);
 	}
-	getToken(2/*right_parenthesis*/, llTokenSet23, follow);
+	getToken(2/*right_parenthesis*/, llTokenSet23, follow, true);
 }
 
 
 function function_result(follow: LLTokenSet): void {
-	getToken(11/*assign*/, llTokenSet43, follow);
-	getToken(17/*identifier*/, llTokenSet23, follow);
+	getToken(11/*assign*/, llTokenSet43, llTokenSet43, false);
+	getToken(17/*identifier*/, llTokenSet23, follow, true);
 }
 
 
 function function_return(follow: LLTokenSet): void {
-	getToken(11/*assign*/, llTokenSet43, follow);
-	getToken(17/*identifier*/, llTokenSet43, follow);
-	getToken(17/*identifier*/, llTokenSet44, follow);
-	getToken(12/*is*/, llTokenSet34, follow);
-	code(follow);
+	getToken(11/*assign*/, llTokenSet43, llTokenSet43, false);
+	getToken(17/*identifier*/, llTokenSet43, llTokenSet43, false);
+	getToken(17/*identifier*/, llTokenSet44, uniteTokenSets(follow, llTokenSet44), true);
+	if (tokenInCommon(currSymbol, llTokenSet44)) {
+		getToken(12/*is*/, llTokenSet34, llTokenSet34, false);
+		code(follow);
+	}
 }
 
 
@@ -1172,7 +1177,7 @@ function llgen_file(follow: LLTokenSet): void {
 		} else if (tokenInCommon(currSymbol, llTokenSet34)) {
 			code(uniteTokenSets(follow, llTokenSet46));
 		} else if (tokenInCommon(currSymbol, llTokenSet47)) {
-			getToken(13/*feature_def*/, llTokenSet46, follow);
+			getToken(13/*feature_def*/, llTokenSet46, uniteTokenSets(follow, llTokenSet46), true);
 		} else {
 			llerror("syntax error after %s %.*s", lastSymbol, bufferEnd, scanBuffer);
 		}
@@ -1183,25 +1188,25 @@ function llgen_file(follow: LLTokenSet): void {
 
 function non_bracket_symbol(follow: LLTokenSet): void {
 	if (tokenInCommon(currSymbol, llTokenSet48)) {
-		getToken(25/*single_token*/, llTokenSet23, follow);
+		getToken(25/*single_token*/, llTokenSet23, follow, true);
 	} else if (tokenInCommon(currSymbol, llTokenSet43)) {
-		getToken(17/*identifier*/, llTokenSet23, follow);
+		getToken(17/*identifier*/, llTokenSet23, follow, true);
 	} else if (tokenInCommon(currSymbol, llTokenSet49)) {
-		getToken(9/*colon*/, llTokenSet23, follow);
+		getToken(9/*colon*/, llTokenSet23, follow, true);
 	} else if (tokenInCommon(currSymbol, llTokenSet25)) {
-		getToken(10/*semicolon*/, llTokenSet23, follow);
+		getToken(10/*semicolon*/, llTokenSet23, follow, true);
 	} else if (tokenInCommon(currSymbol, llTokenSet50)) {
-		getToken(8/*period*/, llTokenSet23, follow);
+		getToken(8/*period*/, llTokenSet23, follow, true);
 	} else if (tokenInCommon(currSymbol, llTokenSet42)) {
-		getToken(16/*output*/, llTokenSet23, follow);
+		getToken(16/*output*/, llTokenSet23, follow, true);
 	} else if (tokenInCommon(currSymbol, llTokenSet51)) {
-		getToken(15/*string*/, llTokenSet23, follow);
+		getToken(15/*string*/, llTokenSet23, follow, true);
 	} else if (tokenInCommon(currSymbol, llTokenSet52)) {
-		getToken(14/*number*/, llTokenSet23, follow);
+		getToken(14/*number*/, llTokenSet23, follow, true);
 	} else if (tokenInCommon(currSymbol, llTokenSet53)) {
-		getToken(11/*assign*/, llTokenSet23, follow);
+		getToken(11/*assign*/, llTokenSet23, follow, true);
 	} else if (tokenInCommon(currSymbol, llTokenSet44)) {
-		getToken(12/*is*/, llTokenSet23, follow);
+		getToken(12/*is*/, llTokenSet23, follow, true);
 	} else {
 		llerror("non_bracket_symbol");
 	}
@@ -1210,7 +1215,7 @@ function non_bracket_symbol(follow: LLTokenSet): void {
 
 function rule(follow: LLTokenSet): void {
 	if (tokenInCommon(currSymbol, llTokenSet43)) {
-		getToken(17/*identifier*/, llTokenSet54, follow);
+		getToken(17/*identifier*/, llTokenSet54, llTokenSet54, false);
 		if (tokenInCommon(currSymbol, llTokenSet44)) {
 			
 			if (!defineFun(SymbolType.terminal, lastSymbol, lastSymbolPos.line, lastSymbolPos.position, docComment)) {
@@ -1221,29 +1226,29 @@ function rule(follow: LLTokenSet): void {
 			
 			enterNonTerminal();
 			if (tokenInCommon(currSymbol, llTokenSet30)) {
-				formal_parameters(uniteTokenSets(follow, llTokenSet56));
+				formal_parameters(llTokenSet56);
 			}
 			if (tokenInCommon(currSymbol, llTokenSet53)) {
-				function_return(uniteTokenSets(follow, llTokenSet49));
+				function_return(llTokenSet49);
 			}
-			getToken(9/*colon*/, llTokenSet57, follow);
+			getToken(9/*colon*/, llTokenSet57, uniteTokenSets(follow, llTokenSet57), true);
 			alternatives(uniteTokenSets(follow, llTokenSet50));
 		} else {
 			llerror("syntax error after %s %.*s", lastSymbol, bufferEnd, scanBuffer);
 		}
 	} else if (tokenInCommon(currSymbol, llTokenSet58)) {
-		getToken(23/*ignore_sym*/, llTokenSet51, follow);
-		getToken(15/*string*/, llTokenSet50, follow);
+		getToken(23/*ignore_sym*/, llTokenSet51, llTokenSet51, false);
+		getToken(15/*string*/, llTokenSet50, uniteTokenSets(follow, llTokenSet50), true);
 	} else {
 		llerror("syntax error after %s %.*s", lastSymbol, bufferEnd, scanBuffer);
 	}
-	getToken(8/*period*/, llTokenSet23, follow);
+	getToken(8/*period*/, llTokenSet23, follow, true);
 }
 
 
 function single_element(follow: LLTokenSet): void {
 	if (tokenInCommon(currSymbol, llTokenSet43)) {
-		getToken(17/*identifier*/, llTokenSet59, follow);
+		getToken(17/*identifier*/, llTokenSet59, uniteTokenSets(follow, llTokenSet59), true);
 		
 		usageFun(SymbolType.unknown, lastSymbol, lastSymbolPos.line, lastSymbolPos.position);
 		if (tokenInCommon(currSymbol, llTokenSet30)) {
@@ -1253,11 +1258,11 @@ function single_element(follow: LLTokenSet): void {
 			function_result(follow);
 		}
 	} else if (tokenInCommon(currSymbol, llTokenSet51)) {
-		getToken(15/*string*/, llTokenSet23, follow);
+		getToken(15/*string*/, llTokenSet23, follow, true);
 	} else if (tokenInCommon(currSymbol, llTokenSet30)) {
-		getToken(1/*left_parenthesis*/, llTokenSet60, follow);
-		alternatives(uniteTokenSets(follow, llTokenSet61));
-		getToken(2/*right_parenthesis*/, llTokenSet23, follow);
+		getToken(1/*left_parenthesis*/, llTokenSet60, llTokenSet60, false);
+		alternatives(llTokenSet61);
+		getToken(2/*right_parenthesis*/, llTokenSet23, follow, true);
 	} else {
 		llerror("single_element");
 	}
@@ -1265,18 +1270,18 @@ function single_element(follow: LLTokenSet): void {
 
 
 function token_declaration(follow: LLTokenSet): void {
-	getToken(12/*is*/, llTokenSet62, follow);
+	getToken(12/*is*/, llTokenSet62, llTokenSet62, false);
 	if (tokenInCommon(currSymbol, llTokenSet51)) {
-		getToken(15/*string*/, llTokenSet63, follow);
+		getToken(15/*string*/, llTokenSet63, uniteTokenSets(follow, llTokenSet63), true);
 		if (tokenInCommon(currSymbol, llTokenSet63)) {
-			getToken(19/*keyword_sym*/, llTokenSet43, follow);
-			getToken(17/*identifier*/, llTokenSet23, follow);
+			getToken(19/*keyword_sym*/, llTokenSet43, llTokenSet43, false);
+			getToken(17/*identifier*/, llTokenSet23, follow, true);
 		}
 	} else if (tokenInCommon(currSymbol, llTokenSet43)) {
-		getToken(17/*identifier*/, llTokenSet30, follow);
-		getToken(1/*left_parenthesis*/, llTokenSet43, follow);
-		getToken(17/*identifier*/, llTokenSet61, follow);
-		getToken(2/*right_parenthesis*/, llTokenSet23, follow);
+		getToken(17/*identifier*/, llTokenSet30, llTokenSet30, false);
+		getToken(1/*left_parenthesis*/, llTokenSet43, llTokenSet43, false);
+		getToken(17/*identifier*/, llTokenSet61, llTokenSet61, false);
+		getToken(2/*right_parenthesis*/, llTokenSet23, follow, true);
 	} else {
 		llerror("syntax error after %s %.*s", lastSymbol, bufferEnd, scanBuffer);
 	}
@@ -1287,13 +1292,13 @@ function wildcard(follow: LLTokenSet): void {
 	if (tokenInCommon(currSymbol, llTokenSet29)) {
 		non_bracket_symbol(follow);
 	} else if (tokenInCommon(currSymbol, llTokenSet30)) {
-		getToken(1/*left_parenthesis*/, llTokenSet21, follow);
-		wildcards(uniteTokenSets(follow, llTokenSet61));
-		getToken(2/*right_parenthesis*/, llTokenSet23, follow);
+		getToken(1/*left_parenthesis*/, llTokenSet21, llTokenSet21, false);
+		wildcards(llTokenSet61);
+		getToken(2/*right_parenthesis*/, llTokenSet23, follow, true);
 	} else if (tokenInCommon(currSymbol, llTokenSet32)) {
-		getToken(3/*left_bracket*/, llTokenSet64, follow);
-		wildcards(uniteTokenSets(follow, llTokenSet65));
-		getToken(4/*right_bracket*/, llTokenSet23, follow);
+		getToken(3/*left_bracket*/, llTokenSet64, llTokenSet64, false);
+		wildcards(llTokenSet65);
+		getToken(4/*right_bracket*/, llTokenSet23, follow, true);
 	} else {
 		llerror("wildcard");
 	}
@@ -1306,7 +1311,7 @@ function wildcards(follow: LLTokenSet): void {
 			if (tokenInCommon(currSymbol, llTokenSet20)) {
 				wildcard(uniteTokenSets(follow, llTokenSet66));
 			} else if (tokenInCommon(currSymbol, llTokenSet22)) {
-				getToken(7/*comma*/, llTokenSet66, follow);
+				getToken(7/*comma*/, llTokenSet66, uniteTokenSets(follow, llTokenSet66), true);
 			} else {
 				llerror("syntax error after %s %.*s", lastSymbol, bufferEnd, scanBuffer);
 			}

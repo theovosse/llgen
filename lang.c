@@ -64,7 +64,10 @@ static void cLanguageLocalDeclaration(FILE* f, const char* type, const char* nam
 }
 
 static void cLanguageLocalDeclarationWithInitialization(FILE* f, const char* type, const char* name, const char* initialValue) {
-    fprintf(f, "%s %s = %s", type, name, initialValue);
+    fprintf(f, "%s %s", type, name);
+    if (initialValue != NULL) {
+        fprintf(f, " = %s", initialValue);
+    }
 }
 
 static void cLanguageReturnValue(FILE* f, const char* returnValue) {
@@ -305,7 +308,10 @@ static void jsLanguageLocalDeclaration(FILE* f, const char* type, const char* na
 }
 
 static void jsLanguageLocalDeclarationWithInitialization(FILE* f, const char* type, const char* name, const char* initialValue) {
-    fprintf(f, "var %s = %s", name, initialValue);
+    fprintf(f, "var %s", name);
+    if (initialValue != NULL) {
+        fprintf(f, " = %s", initialValue);
+    }
 }
 
 static void jsLanguageReturnValue(FILE* f, const char* returnValue) {
@@ -491,7 +497,10 @@ static void tsLanguageLocalDeclaration(FILE* f, const char* type, const char* na
 }
 
 static void tsLanguageLocalDeclarationWithInitialization(FILE* f, const char* type, const char* name, const char* initialValue) {
-    fprintf(f, "let %s: %s = %s", name, type, initialValue);
+    fprintf(f, "let %s: %s", name, type);
+    if (initialValue != NULL) {
+        fprintf(f, " = %s", initialValue);
+    }
 }
 
 static void tsLanguageStartFunctionDeclaration(FILE* f, const char* functionName, const char* type) {
@@ -644,7 +653,10 @@ static void goLanguageLocalDeclaration(FILE* f, const char* type, const char* na
 }
 
 static void goLanguageLocalDeclarationWithInitialization(FILE* f, const char* type, const char* name, const char* initialValue) {
-    fprintf(f, "var %s %s = %s", name, type, initialValue);
+    fprintf(f, "var %s %s", name, type);
+    if (initialValue != NULL) {
+        fprintf(f, " = %s", initialValue);
+    }
 }
 
 static void goLanguageReturnValue(FILE* f, const char* returnValue) {
@@ -851,7 +863,10 @@ static void rustLanguageLocalDeclaration(FILE* f, const char* type, const char* 
 }
 
 static void rustLanguageLocalDeclarationWithInitialization(FILE* f, const char* type, const char* name, const char* initialValue) {
-    fprintf(f, "let %s: %s = %s", name, type, initialValue);
+    fprintf(f, "let %s: %s", name, type);
+    if (initialValue != NULL) {
+        fprintf(f, " = %s", initialValue);
+    }
 }
 
 static void rustLanguageReturnValue(FILE* f, const char* returnValue) {

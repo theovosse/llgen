@@ -142,7 +142,7 @@ formal_parameters:
     right_parenthesis.
 
 function_return:
-    assign, identifier, identifier, is, code.
+    assign, identifier, identifier, (is, code) OPTION.
 
 alternatives:
     alternative CHAIN semicolon.

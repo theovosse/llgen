@@ -399,7 +399,7 @@ union yyalloc
 /* YYNNTS -- Number of nonterminals.  */
 #define YYNNTS  20
 /* YYNRULES -- Number of rules.  */
-#define YYNRULES  55
+#define YYNRULES  56
 /* YYNRULES -- Number of states.  */
 #define YYNSTATES  88
 
@@ -450,11 +450,11 @@ static const yytype_uint8 yytranslate[] =
 static const yytype_uint8 yyprhs[] =
 {
        0,     0,     3,     5,     8,    10,    12,    17,    22,    29,
-      37,    42,    46,    48,    52,    54,    56,    62,    63,    66,
-      67,    71,    72,    74,    78,    79,    81,    83,    87,    89,
-      93,    96,    99,   103,   105,   107,   109,   112,   116,   118,
-     122,   124,   126,   128,   130,   132,   134,   136,   138,   140,
-     142,   144,   146,   150,   154,   155
+      37,    42,    46,    48,    52,    54,    56,    62,    66,    67,
+      70,    71,    75,    76,    78,    82,    83,    85,    87,    91,
+      93,    97,   100,   103,   107,   109,   111,   113,   116,   120,
+     122,   126,   128,   130,   132,   134,   136,   138,   140,   142,
+     144,   146,   148,   150,   154,   158,   159
 };
 
 /* YYRHS -- A `-1'-separated list of the rules' RHS.  */
@@ -466,27 +466,28 @@ static const yytype_int8 yyrhs[] =
       23,    31,    17,    31,    18,     6,    -1,    31,    15,    31,
        6,    -1,    24,    19,     6,    -1,     3,    -1,    31,    37,
       35,    -1,    11,    -1,     3,    -1,     7,    34,    34,    23,
-      33,    -1,    -1,     7,    34,    -1,    -1,    17,    46,    18,
-      -1,    -1,    39,    -1,    39,     5,    38,    -1,    -1,    40,
-      -1,    41,    -1,    41,     9,    40,    -1,    42,    -1,    42,
-      16,    43,    -1,    42,    12,    -1,    42,    13,    -1,    42,
-      13,    12,    -1,    11,    -1,    10,    -1,    43,    -1,     8,
-      43,    -1,    31,    37,    36,    -1,    19,    -1,    17,    38,
-      18,    -1,    21,    -1,     3,    -1,     4,    -1,     5,    -1,
-       6,    -1,     9,    -1,    10,    -1,    19,    -1,    20,    -1,
-      22,    -1,    23,    -1,    44,    -1,    17,    46,    18,    -1,
-      25,    46,    26,    -1,    -1,    46,    45,    -1
+      33,    -1,     7,    34,    34,    -1,    -1,     7,    34,    -1,
+      -1,    17,    46,    18,    -1,    -1,    39,    -1,    39,     5,
+      38,    -1,    -1,    40,    -1,    41,    -1,    41,     9,    40,
+      -1,    42,    -1,    42,    16,    43,    -1,    42,    12,    -1,
+      42,    13,    -1,    42,    13,    12,    -1,    11,    -1,    10,
+      -1,    43,    -1,     8,    43,    -1,    31,    37,    36,    -1,
+      19,    -1,    17,    38,    18,    -1,    21,    -1,     3,    -1,
+       4,    -1,     5,    -1,     6,    -1,     9,    -1,    10,    -1,
+      19,    -1,    20,    -1,    22,    -1,    23,    -1,    44,    -1,
+      17,    46,    18,    -1,    25,    46,    26,    -1,    -1,    46,
+      45,    -1
 };
 
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
 static const yytype_uint8 yyrline[] =
 {
        0,    39,    39,    39,    42,    46,    51,    52,    53,    54,
-      55,    56,    58,    62,    74,    78,    83,    85,    90,    92,
-      97,    99,   104,   107,   112,   113,   115,   116,   119,   122,
-     126,   129,   132,   136,   139,   144,   147,   153,   158,   162,
-     173,   174,   175,   176,   177,   178,   179,   180,   181,   182,
-     183,   186,   189,   193,   199,   202
+      55,    56,    58,    62,    74,    78,    83,    86,    88,    93,
+      95,   100,   102,   107,   110,   115,   116,   118,   119,   122,
+     125,   129,   132,   135,   139,   142,   147,   150,   156,   161,
+     165,   176,   177,   178,   179,   180,   181,   182,   183,   184,
+     185,   186,   189,   192,   196,   202,   205
 };
 #endif
 
@@ -523,22 +524,22 @@ static const yytype_uint16 yytoknum[] =
 static const yytype_uint8 yyr1[] =
 {
        0,    27,    28,    28,    29,    29,    30,    30,    30,    30,
-      30,    30,    31,    32,    33,    34,    35,    35,    36,    36,
-      37,    37,    38,    38,    39,    39,    40,    40,    41,    41,
-      41,    41,    41,    41,    41,    42,    42,    43,    43,    43,
-      44,    44,    44,    44,    44,    44,    44,    44,    44,    44,
-      44,    45,    45,    45,    46,    46
+      30,    30,    31,    32,    33,    34,    35,    35,    35,    36,
+      36,    37,    37,    38,    38,    39,    39,    40,    40,    41,
+      41,    41,    41,    41,    41,    41,    42,    42,    43,    43,
+      43,    44,    44,    44,    44,    44,    44,    44,    44,    44,
+      44,    44,    45,    45,    45,    46,    46
 };
 
 /* YYR2[YYN] -- Number of symbols composing right hand side of rule YYN.  */
 static const yytype_uint8 yyr2[] =
 {
        0,     2,     1,     2,     1,     1,     4,     4,     6,     7,
-       4,     3,     1,     3,     1,     1,     5,     0,     2,     0,
-       3,     0,     1,     3,     0,     1,     1,     3,     1,     3,
-       2,     2,     3,     1,     1,     1,     2,     3,     1,     3,
-       1,     1,     1,     1,     1,     1,     1,     1,     1,     1,
-       1,     1,     3,     3,     0,     2
+       4,     3,     1,     3,     1,     1,     5,     3,     0,     2,
+       0,     3,     0,     1,     3,     0,     1,     1,     3,     1,
+       3,     2,     2,     3,     1,     1,     1,     2,     3,     1,
+       3,     1,     1,     1,     1,     1,     1,     1,     1,     1,
+       1,     1,     1,     3,     3,     0,     2
 };
 
 /* YYDEFACT[STATE-NAME] -- Default rule to reduce with in state
@@ -546,15 +547,15 @@ static const yytype_uint8 yyr2[] =
    means the default is an error.  */
 static const yytype_uint8 yydefact[] =
 {
-       0,    12,    14,     0,     0,     2,     4,    21,     0,     5,
-       0,     1,     3,     0,    54,     0,    17,    24,    11,     0,
-       0,     0,     0,     0,    13,     0,    34,    33,    24,    38,
-      21,     0,    22,    25,    26,    28,    35,    10,    41,    42,
-      43,    44,    45,    46,    54,    20,    47,    48,    40,    49,
-      50,    54,    51,    55,     7,     0,     0,    15,     0,    36,
-       0,    19,     6,    24,     0,    30,    31,     0,     0,     0,
-       0,     0,     0,    39,     0,    37,    23,    27,    32,    29,
-      52,    53,     8,     0,     0,    18,     9,    16
+       0,    12,    14,     0,     0,     2,     4,    22,     0,     5,
+       0,     1,     3,     0,    55,     0,    18,    25,    11,     0,
+       0,     0,     0,     0,    13,     0,    35,    34,    25,    39,
+      22,     0,    23,    26,    27,    29,    36,    10,    42,    43,
+      44,    45,    46,    47,    55,    21,    48,    49,    41,    50,
+      51,    55,    52,    56,     7,     0,     0,    15,     0,    37,
+       0,    20,     6,    25,     0,    31,    32,     0,     0,     0,
+       0,     0,    17,    40,     0,    38,    24,    28,    33,    30,
+      53,    54,     8,     0,     0,    19,     9,    16
 };
 
 /* YYDEFGOTO[NTERM-NUM].  */
@@ -1538,143 +1539,150 @@ yyreduce:
     break;
 
   case 17:
-#line 85 "gram2.y"
+#line 86 "gram2.y"
+    {
+		(yyval.ruleresult) = MakeRuleResult((yyvsp[(2) - (3)].name), (yyvsp[(3) - (3)].name), NULL);
+	;}
+    break;
+
+  case 18:
+#line 88 "gram2.y"
     {
 		(yyval.ruleresult) = NULL;
 	;}
     break;
 
-  case 18:
-#line 90 "gram2.y"
+  case 19:
+#line 93 "gram2.y"
     {
 		(yyval.name) = (yyvsp[(2) - (2)].name);
 	;}
     break;
 
-  case 19:
-#line 92 "gram2.y"
+  case 20:
+#line 95 "gram2.y"
     {
 		(yyval.name) = NULL;
 	;}
     break;
 
-  case 20:
-#line 97 "gram2.y"
+  case 21:
+#line 100 "gram2.y"
     {
 		(yyval.node) = (yyvsp[(2) - (3)].node);
 	;}
     break;
 
-  case 21:
-#line 99 "gram2.y"
+  case 22:
+#line 102 "gram2.y"
     {
 		(yyval.node) = NULL;
-	;}
-    break;
-
-  case 22:
-#line 104 "gram2.y"
-    {
-		(yyval.nodeList) = (yyvsp[(1) - (1)].nodeList);
 	;}
     break;
 
   case 23:
 #line 107 "gram2.y"
     {
+		(yyval.nodeList) = (yyvsp[(1) - (1)].nodeList);
+	;}
+    break;
+
+  case 24:
+#line 110 "gram2.y"
+    {
 		(yyvsp[(1) - (3)].nodeList)->rest = (yyvsp[(3) - (3)].nodeList);
 		(yyval.nodeList) = (yyvsp[(1) - (3)].nodeList);
 	;}
     break;
 
-  case 24:
-#line 112 "gram2.y"
+  case 25:
+#line 115 "gram2.y"
     {(yyval.nodeList) = MakeNodeList(NULL, NULL); ;}
     break;
 
-  case 25:
-#line 113 "gram2.y"
+  case 26:
+#line 116 "gram2.y"
     {(yyval.nodeList) = MakeNodeList((yyvsp[(1) - (1)].node), NULL); ;}
     break;
 
-  case 26:
-#line 115 "gram2.y"
-    { (yyval.node) = (yyvsp[(1) - (1)].node); ;}
-    break;
-
   case 27:
-#line 116 "gram2.y"
-    { (yyvsp[(1) - (3)].node)->next = (yyvsp[(3) - (3)].node); (yyval.node) = (yyvsp[(1) - (3)].node); ;}
+#line 118 "gram2.y"
+    { (yyval.node) = (yyvsp[(1) - (1)].node); ;}
     break;
 
   case 28:
 #line 119 "gram2.y"
+    { (yyvsp[(1) - (3)].node)->next = (yyvsp[(3) - (3)].node); (yyval.node) = (yyvsp[(1) - (3)].node); ;}
+    break;
+
+  case 29:
+#line 122 "gram2.y"
     {
 		(yyval.node) = (yyvsp[(1) - (1)].node);
 	;}
     break;
 
-  case 29:
-#line 122 "gram2.y"
+  case 30:
+#line 125 "gram2.y"
     {
 		(yyval.node) = MakeNode(lineNumber, chain, MakeNode(lineNumber, single, (yyvsp[(1) - (3)].node),
 						MakeNode(lineNumber, single, (yyvsp[(3) - (3)].node), NULL)), NULL);
 	;}
     break;
 
-  case 30:
-#line 126 "gram2.y"
-    {
-		(yyval.node) = MakeNode(lineNumber, option, (yyvsp[(1) - (2)].node), NULL);
-	;}
-    break;
-
   case 31:
 #line 129 "gram2.y"
     {
-		(yyval.node) = MakeNode(lineNumber, sequence, (yyvsp[(1) - (2)].node), NULL);
+		(yyval.node) = MakeNode(lineNumber, option, (yyvsp[(1) - (2)].node), NULL);
 	;}
     break;
 
   case 32:
 #line 132 "gram2.y"
     {
-		(yyval.node) = MakeNode(lineNumber, option, MakeNode(lineNumber, sequence, (yyvsp[(1) - (3)].node), NULL), NULL);
-		(yyval.node)->element.sub->preferShift = (yyvsp[(1) - (3)].node)->preferShift;
+		(yyval.node) = MakeNode(lineNumber, sequence, (yyvsp[(1) - (2)].node), NULL);
 	;}
     break;
 
   case 33:
-#line 136 "gram2.y"
+#line 135 "gram2.y"
     {
-		(yyval.node) = MakeNode(cLineNumber, single, MakeName(codeBlock, -1, code, cLineNumber), NULL);
+		(yyval.node) = MakeNode(lineNumber, option, MakeNode(lineNumber, sequence, (yyvsp[(1) - (3)].node), NULL), NULL);
+		(yyval.node)->element.sub->preferShift = (yyvsp[(1) - (3)].node)->preferShift;
 	;}
     break;
 
   case 34:
 #line 139 "gram2.y"
     {
-		(yyval.node) = MakeNode(cLineNumber, single, MakeName(codeBlock, -1, output, cLineNumber), NULL);
+		(yyval.node) = MakeNode(cLineNumber, single, MakeName(codeBlock, -1, code, cLineNumber), NULL);
 	;}
     break;
 
   case 35:
-#line 144 "gram2.y"
+#line 142 "gram2.y"
     {
-		(yyval.node) = (yyvsp[(1) - (1)].node);
+		(yyval.node) = MakeNode(cLineNumber, single, MakeName(codeBlock, -1, output, cLineNumber), NULL);
 	;}
     break;
 
   case 36:
 #line 147 "gram2.y"
     {
+		(yyval.node) = (yyvsp[(1) - (1)].node);
+	;}
+    break;
+
+  case 37:
+#line 150 "gram2.y"
+    {
 		(yyval.node) = (yyvsp[(2) - (2)].node);
 		(yyval.node)->preferShift = true;
 	;}
     break;
 
-  case 37:
-#line 153 "gram2.y"
+  case 38:
+#line 156 "gram2.y"
     {
 		(yyval.node) = MakeNode(lineNumber, single, (yyvsp[(1) - (3)].name), NULL);
 		(yyval.node)->arglist = (yyvsp[(2) - (3)].node);
@@ -1682,16 +1690,16 @@ yyreduce:
 	;}
     break;
 
-  case 38:
-#line 158 "gram2.y"
+  case 39:
+#line 161 "gram2.y"
     {
 		(yyvsp[(1) - (1)].name)->isTerminal = true;
 		(yyval.node) = MakeNode(lineNumber, single, (yyvsp[(1) - (1)].name), NULL);
 	;}
     break;
 
-  case 39:
-#line 162 "gram2.y"
+  case 40:
+#line 165 "gram2.y"
     {
 		(yyval.node) = MakeNode(lineNumber, alternative, (yyvsp[(2) - (3)].nodeList), NULL);
 		if (!containsGrammarSymbol((yyvsp[(2) - (3)].nodeList))) {
@@ -1703,93 +1711,93 @@ yyreduce:
 	;}
     break;
 
-  case 40:
-#line 173 "gram2.y"
-    { (yyval.node) = MakeNode(nrBlanks, single, MakeString(yytext), NULL); ;}
-    break;
-
   case 41:
-#line 174 "gram2.y"
-    { (yyval.node) = MakeNode(nrBlanks, single, MakeString(yytext), NULL); ;}
-    break;
-
-  case 42:
-#line 175 "gram2.y"
-    { (yyval.node) = MakeNode(nrBlanks, single, MakeString(yytext), NULL); ;}
-    break;
-
-  case 43:
 #line 176 "gram2.y"
     { (yyval.node) = MakeNode(nrBlanks, single, MakeString(yytext), NULL); ;}
     break;
 
-  case 44:
+  case 42:
 #line 177 "gram2.y"
     { (yyval.node) = MakeNode(nrBlanks, single, MakeString(yytext), NULL); ;}
     break;
 
-  case 45:
+  case 43:
 #line 178 "gram2.y"
     { (yyval.node) = MakeNode(nrBlanks, single, MakeString(yytext), NULL); ;}
     break;
 
-  case 46:
+  case 44:
 #line 179 "gram2.y"
     { (yyval.node) = MakeNode(nrBlanks, single, MakeString(yytext), NULL); ;}
     break;
 
-  case 47:
+  case 45:
 #line 180 "gram2.y"
     { (yyval.node) = MakeNode(nrBlanks, single, MakeString(yytext), NULL); ;}
     break;
 
-  case 48:
+  case 46:
 #line 181 "gram2.y"
     { (yyval.node) = MakeNode(nrBlanks, single, MakeString(yytext), NULL); ;}
     break;
 
-  case 49:
+  case 47:
 #line 182 "gram2.y"
     { (yyval.node) = MakeNode(nrBlanks, single, MakeString(yytext), NULL); ;}
     break;
 
-  case 50:
+  case 48:
 #line 183 "gram2.y"
+    { (yyval.node) = MakeNode(nrBlanks, single, MakeString(yytext), NULL); ;}
+    break;
+
+  case 49:
+#line 184 "gram2.y"
+    { (yyval.node) = MakeNode(nrBlanks, single, MakeString(yytext), NULL); ;}
+    break;
+
+  case 50:
+#line 185 "gram2.y"
     { (yyval.node) = MakeNode(nrBlanks, single, MakeString(yytext), NULL); ;}
     break;
 
   case 51:
 #line 186 "gram2.y"
+    { (yyval.node) = MakeNode(nrBlanks, single, MakeString(yytext), NULL); ;}
+    break;
+
+  case 52:
+#line 189 "gram2.y"
     {
 		(yyval.node) = (yyvsp[(1) - (1)].node);
 	;}
     break;
 
-  case 52:
-#line 189 "gram2.y"
+  case 53:
+#line 192 "gram2.y"
     {
 		(yyval.node) = AppendNode(MakeNode(0, single, MakeString("("), (yyvsp[(2) - (3)].node)),
 						MakeNode(0, single, MakeString(")"), NULL));
 	;}
     break;
 
-  case 53:
-#line 193 "gram2.y"
+  case 54:
+#line 196 "gram2.y"
     {
 		(yyval.node) = AppendNode(MakeNode(0, single, MakeString("["), (yyvsp[(2) - (3)].node)),
 						MakeNode(0, single, MakeString("]"), NULL));
 	;}
     break;
 
-  case 54:
-#line 199 "gram2.y"
+  case 55:
+#line 202 "gram2.y"
     {
 		(yyval.node) = NULL;
 	;}
     break;
 
-  case 55:
-#line 202 "gram2.y"
+  case 56:
+#line 205 "gram2.y"
     {
 		(yyval.node) = AppendNode((yyvsp[(1) - (2)].node), (yyvsp[(2) - (2)].node));
 	;}
@@ -1797,7 +1805,7 @@ yyreduce:
 
 
 /* Line 1267 of yacc.c.  */
-#line 1801 "gram2.tab.c"
+#line 1809 "gram2.tab.c"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);

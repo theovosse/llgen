@@ -82,6 +82,9 @@ identifiername: identifiersym {
 functionreturnoption:
 	functionreturnsym identifiername identifiername equalsym codename {
 		$$ = MakeRuleResult($2, $3, $5);
+	} | 
+	functionreturnsym identifiername identifiername {
+		$$ = MakeRuleResult($2, $3, NULL);
 	} | {
 		$$ = NULL;
 	};
