@@ -39,7 +39,8 @@ The code is POSIX compliant, I hope, so run `make llgen` should do it, but it's 
 
     `expr(context any) -> result string = { "" }:`
 
-  would receive a parameter `context` when called (provided by the grammar author) and return a value in the local variable `result` which would be initialized with "". The call would have to look like this:
+  would receive a parameter `context` when called (provided by the grammar author) and return a value in the local variable `result` which would be initialized with "".
+  Initialization is optional. The call would have to look like this:
 
     `rule: ... expr(some_context) -> expr_result ...`
 
