@@ -20,7 +20,9 @@ typedef enum NodeType {
     option,
     sequence,
     chain,
-    alternative
+    alternative,
+    breakToken,
+    errorMessage
 } NodeType;
 
 typedef struct Name *Name;

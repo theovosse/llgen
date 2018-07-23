@@ -91,6 +91,9 @@ option_sym = "OPTION" KEYWORD identifier.
 subtoken_sym = "SUBTOKEN" KEYWORD identifier.
 ignore_sym = "IGNORE" KEYWORD identifier.
 shift_sym = "SHIFT" KEYWORD identifier.
+on_sym = "ON" KEYWORD identifier.
+break_sym = "BREAK" KEYWORD identifier.
+error_sym = "ERROR" KEYWORD identifier.
 single_token = "[+\-/%&|\^\<\>~!?]|\+\+|--|\<\<|\>\>|&&|\|\||\.\.\.|((\<\<|\>\>|[+\-/%&|\^])=)".
 IGNORE "[ \t\n\r]+".
 IGNORE "//.*".
@@ -162,13 +165,21 @@ element:
 	output.
 
 single_element:
-	identifier,
-    {
+	identifier, {
         usageFun(SymbolType.unknown, lastSymbol, lastSymbolPos.line, lastSymbolPos.position);
     },
     actual_parameters OPTION, function_result OPTION;
 	string;
-	left_parenthesis, alternatives, right_parenthesis.
+	left_parenthesis, alternatives, right_parenthesis;
+    on_sym, (
+        identifier, {
+            usageFun(SymbolType.unknown, lastSymbol, lastSymbolPos.line, lastSymbolPos.position);
+        };
+        string
+    ), (
+        break_sym;
+        error_sym, string
+    ).
 
 actual_parameters:
     left_parenthesis,

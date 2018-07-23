@@ -55,14 +55,17 @@
      chainsym = 271,
      lparsym = 272,
      rparsym = 273,
-     stringsym = 274,
-     numbersym = 275,
-     singletoken = 276,
-     starsym = 277,
-     equalsym = 278,
-     ignoresym = 279,
-     lbracketsym = 280,
-     rbracketsym = 281
+     breaksym = 274,
+     errorsym = 275,
+     onsym = 276,
+     stringsym = 277,
+     numbersym = 278,
+     singletoken = 279,
+     starsym = 280,
+     equalsym = 281,
+     ignoresym = 282,
+     lbracketsym = 283,
+     rbracketsym = 284
    };
 #endif
 /* Tokens.  */
@@ -82,14 +85,17 @@
 #define chainsym 271
 #define lparsym 272
 #define rparsym 273
-#define stringsym 274
-#define numbersym 275
-#define singletoken 276
-#define starsym 277
-#define equalsym 278
-#define ignoresym 279
-#define lbracketsym 280
-#define rbracketsym 281
+#define breaksym 274
+#define errorsym 275
+#define onsym 276
+#define stringsym 277
+#define numbersym 278
+#define singletoken 279
+#define starsym 280
+#define equalsym 281
+#define ignoresym 282
+#define lbracketsym 283
+#define rbracketsym 284
 
 
 
@@ -105,7 +111,7 @@ typedef union YYSTYPE
 	RuleResult ruleresult;
 }
 /* Line 1529 of yacc.c.  */
-#line 109 "gram2.tab.h"
+#line 115 "gram2.tab.h"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1

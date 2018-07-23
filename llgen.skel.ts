@@ -60,6 +60,9 @@ export function setInputFileName(fn: string): void {
     inputFileName = fn;
 }
 let scanBuffer = "";
+%{ignorebuffer
+export let ignoreBuffer = "";
+%}ignorebuffer
 let lastSymbol = "";
 export let lastSymbolPos = {line: 0, position: 0};
 let bufferEnd = 0;
@@ -193,6 +196,11 @@ function nextSymbol(): void
     let recognizedToken: LLTokenSet|undefined = undefined;
 %}!regexpcontext
 
+%{ignorebuffer
+%{!keepignorebuffer
+    ignoreBuffer = "";
+%}!keepignorebuffer
+%}ignorebuffer
     /* Copy last recognized symbol into buffer and adjust positions */
     lastSymbol = scanBuffer.slice(0, bufferEnd);
     lastSymbolPos.line = llLineNumber;
@@ -286,7 +294,12 @@ function nextSymbol(): void
                 return;
             }
 %}!regexpcontext
+%{ignorebuffer
+            ignoreBuffer += scanBuffer.substr(0, bufferEnd);
+%}ignorebuffer
+%{!ignorebuffer
             /* If nothing recognized, continue; no need to copy buffer */
+%}!ignorebuffer
             lastNlPos = nlPos = 0;
             while ((nlPos = scanBuffer.indexOf('\n', nlPos)) != -1 && nlPos < bufferEnd) {
                 llLineNumber++;

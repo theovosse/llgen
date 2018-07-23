@@ -1,0 +1,11 @@
+*.o
+.vscode
+niet-in-cvs/**
+**/node_modules
+*.map
+cdl*
+tmp
+test
+llgen-language-server/client/out/src/*.js
+llgen-language-server/client/server/*.js
+llgen-language-server/server/src/llgen.ts

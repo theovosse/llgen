@@ -48,7 +48,7 @@ The code is POSIX compliant, I hope, so run `make llgen` should do it, but it's 
 
 - Comment must be placed between `/*` and `*/`.
 
-- If nothing is specified, whitespace is significant like any character. To ignore   a string, add
+- If nothing is specified, whitespace is significant like any character. To ignore a string, add
 
   `IGNORE "regexp".`
 
@@ -60,6 +60,14 @@ The code is POSIX compliant, I hope, so run `make llgen` should do it, but it's 
     `IGNORE "//.*".`
   
   Note that these strings are ignored, but do separate tokens.
+
+- There is a primitive error handling mechanism: `ON <terminal>`. If the terminal is encountered at that point in a rule, you can perform one of these actions:
+
+    `ON <terminal> BREAK`, which breaks out of a sequence or chain.
+
+    `ON <terminal> ERROR <string>` which prints the string as an error message via llerror (so it shows at the current token and should be seen as an error by the environment).
+
+Note that the terminal is not consumed.
 
 # Usage
 
@@ -91,16 +99,20 @@ There's also extensive support for editing in VSCode, but you'll have to build a
 
 # About the code
 
-LLGen is written entirely in C, because that was the only compiler I had when
-I started it. Although rewriting in C++ could make some parts more readable,
-I decided it's not worth it, as there was nothing to be gained from using
-inheritance, until I added support for multiple languages. Using templates
-will make some of the code a bit easier, but it's never been worth a complete
-rewrite.
+LLGen is written entirely in C, because that was the only compiler I had when I started it. Although rewriting in C++ could make some parts more readable, I decided it's not worth it, as there was nothing to be gained from using inheritance, until I added support for multiple languages. Using templates will make some of the code a bit easier, but it's never been worth a complete rewrite.
 
 So:
 - rules and are represented as a tree of nodes
 - symbol sets are AVL trees (sorting/comparison is passed along as a function)
 
-The regexp code is even older, and uses the classic regexps -> NFA -> DFA
-algorithm. It even has an option to generate 68k machine code from the DFA.
+The regexp code is even older, and uses the classic regexps -> NFA -> DFA algorithm. It even has an option to generate 68k machine code from the DFA.
+
+# Skeleton file properties
+
+- llerror: by default on; provides an error reporting mechanism.
+
+- main: by default off; makes the output stand-alone.
+
+- ignorebuffer: by default off; stores all ignored tokens before the current; only implemented for ts/js.
+
+- keepignorebuffer: off by default; when set, does not clear ignoreBuffer on every token, but requires the grammar to do so.

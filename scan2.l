@@ -23,9 +23,12 @@ static struct KeyWord
 	int index;
 } keywordStrings[] =
 {
+	{"BREAK", breaksym},
 	{"CHAIN", chainsym},
+	{"ERROR", errorsym},
 	{"IGNORE", ignoresym},
 	{"KEYWORD", keywordsym},
+	{"ON", onsym},
 	{"OPTION", optionsym},
 	{"SEQUENCE", sequencesym},
 	{"SHIFT", shifttokensym},

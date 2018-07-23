@@ -478,7 +478,9 @@ Node MakeNode(short int lineNr, NodeType nodeType, void *element, Node next) {
 		case sequence: node->element.sub = element; break;
 		case chain: node->element.sub = element; break;
 		case alternative: node->element.alternatives = element; break;
-		default: fprintf(stderr, "MakeNode: unknown nodetype %d\n", nodeType);
+		case breakToken: node->element.name = element; break;
+		case errorMessage: node->element.sub = element; break;
+		// default: fprintf(stderr, "MakeNode: unknown nodetype %d\n", nodeType);
 	}
 	node->lineNr = lineNr;
 	node->next = next;
@@ -538,6 +540,9 @@ static Boolean nodeContainsGrammarSymbol(Node node) {
 					return true;
 				}
 				break;
+			case breakToken:
+			case errorMessage:
+				return true;
 		}
 		node = node->next;
 	}
@@ -649,9 +654,12 @@ static Boolean determineEmptyRule(Node rule) {
 					}
 				}
 				break;
-			default:
-				fprintf(stderr, "determineEmptyRule: unknown nodetype %d\n", ptr->nodeType);
-				return empty;
+			case breakToken:
+			case errorMessage:
+				break;
+			// default:
+			// 	fprintf(stderr, "determineEmptyRule: unknown nodetype %d\n", ptr->nodeType);
+			// 	return empty;
 		}
 	}
 	rule->empty = empty;
@@ -869,6 +877,7 @@ static Boolean collectFirst(TREE *firsts, TREE follow, Node rule) {
 	NodeList rules;
 	Boolean empty = true;
 	TREE sym;
+	Boolean emptyAlternative;
 
 	while (empty && rule != NULL) {
 		switch (rule->nodeType) {
@@ -899,12 +908,18 @@ static Boolean collectFirst(TREE *firsts, TREE follow, Node rule) {
 				}
 				break;
 			case alternative: /* Try each one... */
-				empty = false;
+				emptyAlternative = false;
 				for (rules = rule->element.alternatives; rules != NULL; rules = rules->rest) {
 					if (collectFirst(firsts, NULL, rules->first)) {
-						empty = true;
+						emptyAlternative = true;
 					}
 				}
+				if (!emptyAlternative) {
+					empty = false;
+				}
+				break;
+			case breakToken:
+			case errorMessage:
 				break;
 			default:
 				fprintf(stderr, "collectFirst: unknown nodetype %d\n", rule->nodeType);
@@ -916,6 +931,27 @@ static Boolean collectFirst(TREE *firsts, TREE follow, Node rule) {
 		Unite(firsts, follow);
 	}
 	return empty;
+}
+
+static void collectFirstOn(TREE *firsts, Node rule) {
+	Name name;
+
+	switch (rule->nodeType) {
+		case breakToken:
+			name = rule->element.name;
+			break;
+		case errorMessage:
+			name = rule->element.sub->element.name;
+			break;
+		default:
+			fprintf(stderr, "collectFirstOn: unknown nodetype %d\n", rule->nodeType);
+			return;
+	}
+	if (name->nameType == identifier) {
+		fprintf(stderr, "%d: on non-terminal\n", rule->lineNr);
+	} else if (name->nameType == token || name->nameType == string) {
+		(void) InsertElement(firsts, name);
+	}
 }
 
 static void DetermineFirst(Name name) {
@@ -991,9 +1027,13 @@ static void DetermineFollowRule(TREE *follow, Node rule, Name orig, TREE followe
 						DetermineFollowRule(follow, rules->first, orig, nFollowers);
 					}
 					break;
-				default:
-					fprintf(stderr, "DetermineFollowRule: unknown nodetype %d", rule->nodeType);
-					return;
+				case breakToken:
+				case errorMessage:
+					// Just empty productions
+					break;
+				// default:
+				// 	fprintf(stderr, "DetermineFollowRule: unknown nodetype %d", rule->nodeType);
+				// 	return;
 			}
 			KillTree(nFollowers, NULL);
 		}
@@ -1498,6 +1538,12 @@ void PrintRule2(FILE *f, Node rule) {
 				}
 				fputs(")", f);
 				break;
+			case breakToken:
+				fprintf(f, "ON %s BREAK", rule->element.name->name);
+				break;
+			case errorMessage:
+				fprintf(f, "ON %s BREAK %s", rule->element.sub->element.name->name, rule->element.sub->next->element.name->name);
+				break;
 			default:
 				fprintf(stderr, "DetermineFollowRule: unknown nodetype %d", rule->nodeType);
 				return;
@@ -1594,6 +1640,11 @@ static int TokenSetCmp2(void *tSet1, void *tSet2) {
 static void TokenSetName2(TREE tokenSet) {
 	TREE node = FindNode(tokenSets2, tokenSet, TokenSetCmp2);
 
+	if (node == NULL) {
+		fputs("cannot find token set: ", stderr);
+		PrintTree(stderr, tokenSet);
+		fputc('\n', stderr);
+	}
     targetLanguage->pointerToArray(outputFile, "llTokenSet", (long int) GetInfo(node));
 }
 
@@ -1981,7 +2032,36 @@ static void GenerateRule(Name ruleName, Node rule, Boolean emptyToEndOfRule, TRE
 				PrintAlternatives(ruleName, rule->element.alternatives, emptyToEndOfRule, followers, indent,
 								  targetLanguage->errorMsg, targetLanguage->errorArgs, generateCode, lFirstNext, usesLA, rule->lineNr);
 				break;
-			default:
+			case breakToken:
+				collectFirstOn(&firsts, rule);
+				if (generateCode) {
+					doIndent(indent);
+				}
+				PrintFirstSymbols(firsts, ifCondition, indent, true, generateCode,
+								  NULL, rule->lineNr, false, usesLA);
+				if (generateCode) {
+					startBlock(indent);
+					breakStatement(indent + 1);
+					terminateBlock(indent);
+				}
+				break;
+			case errorMessage:
+				collectFirstOn(&firsts, rule);
+				if (generateCode) {
+					doIndent(indent);
+				}
+				PrintFirstSymbols(firsts, ifCondition, indent, true, generateCode,
+								  NULL, rule->lineNr, false, usesLA);
+				if (generateCode) {
+					startBlock(indent);
+					doIndent(indent + 1);
+					targetLanguage->startFunctionCall(outputFile, "llerror", NULL, NULL);
+					targetLanguage->nextCallParameter(outputFile);
+					targetLanguage->nextCallParameterSymbol(outputFile, rule->element.sub->next->element.name->name);
+					targetLanguage->endFunctionCall(outputFile);
+					fputs(targetLanguage->terminateStatement, outputFile);
+					terminateBlock(indent);
+				}
 				break;
 		}
 		rule = rule->next;

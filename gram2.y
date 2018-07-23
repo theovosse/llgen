@@ -22,7 +22,7 @@ static Node *codeBlkPtr = &preCodeBlocks;
 %token <string> identifiersym
 %token colonsym semicolonsym periodsym functionreturnsym shifttokensym
 %token commasym outputsym codesym optionsym sequencesym keywordsym subtokensym
-%token chainsym lparsym rparsym
+%token chainsym lparsym rparsym breaksym errorsym onsym
 %token <name> stringsym
 %token numbersym singletoken starsym equalsym ignoresym lbracketsym rbracketsym
 
@@ -141,7 +141,15 @@ element:
 	} |
 	outputsym {
 		$$ = MakeNode(cLineNumber, single, MakeName(codeBlock, -1, output, cLineNumber), NULL);
-	} ;
+	} |
+	onsym identifier breaksym {
+		$2->isTerminal = true;
+		$$ = MakeNode(lineNumber, breakToken, $2, NULL);
+	} |
+	onsym identifier errorsym stringsym {
+		$2->isTerminal = true;
+		$$ = MakeNode(lineNumber, errorMessage, MakeNode(lineNumber, single, $2, MakeNode(lineNumber, single, $4, NULL)), NULL);
+	};
 
 single_element_shiftoption:
 	single_element {

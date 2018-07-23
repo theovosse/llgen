@@ -533,9 +533,12 @@ static struct KeyWord
 	int index;
 } keywordStrings[] =
 {
+	{"BREAK", breaksym},
 	{"CHAIN", chainsym},
+	{"ERROR", errorsym},
 	{"IGNORE", ignoresym},
 	{"KEYWORD", keywordsym},
+	{"ON", onsym},
 	{"OPTION", optionsym},
 	{"SEQUENCE", sequencesym},
 	{"SHIFT", shifttokensym},
@@ -568,7 +571,7 @@ int yylex(void)
 #define YY_INPUT(buf,result,max_size) if ((result = fread(buf, 1, max_size, yyin)) < 0 ) YY_FATAL_ERROR("fread() in flex scanner failed");
 
 
-#line 572 "lex.yy.c"
+#line 575 "lex.yy.c"
 
 #define INITIAL 0
 #define comment 1
@@ -756,9 +759,9 @@ YY_DECL
 	register char *yy_cp, *yy_bp;
 	register int yy_act;
     
-#line 64 "scan2.l"
+#line 67 "scan2.l"
 
-#line 762 "lex.yy.c"
+#line 765 "lex.yy.c"
 
 	if ( !(yy_init) )
 		{
@@ -844,27 +847,27 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 65 "scan2.l"
+#line 68 "scan2.l"
 { BEGIN INITIAL; }
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 66 "scan2.l"
+#line 69 "scan2.l"
 ;
 	YY_BREAK
 case 3:
 /* rule 3 can match eol */
 YY_RULE_SETUP
-#line 67 "scan2.l"
+#line 70 "scan2.l"
 lineNumber++;
 	YY_BREAK
 case YY_STATE_EOF(comment):
-#line 68 "scan2.l"
+#line 71 "scan2.l"
 { yyerror("unterminated comment"); BEGIN INITIAL; return (0); }
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 69 "scan2.l"
+#line 72 "scan2.l"
 {
 						    if (!commentInCode)
 						    {
@@ -881,7 +884,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 82 "scan2.l"
+#line 85 "scan2.l"
 {
 						    if (!commentInCode)
 						    {
@@ -907,7 +910,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 104 "scan2.l"
+#line 107 "scan2.l"
 {
 						    *cptr++ = yytext[0];
 						    if (cptr - codeBlock >= 8000)
@@ -920,7 +923,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 113 "scan2.l"
+#line 116 "scan2.l"
 {
 						    *cptr++ = yytext[1];
 						    if (cptr - codeBlock >= 8000)
@@ -934,7 +937,7 @@ YY_RULE_SETUP
 case 8:
 /* rule 8 can match eol */
 YY_RULE_SETUP
-#line 122 "scan2.l"
+#line 125 "scan2.l"
 {
 						    lineNumber++;
 						    *cptr++ = yytext[0];
@@ -948,7 +951,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 132 "scan2.l"
+#line 135 "scan2.l"
 {
 						    commentInCode = true;
 						    *cptr++ = yytext[0]; *cptr++ = yytext[1];
@@ -962,7 +965,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 142 "scan2.l"
+#line 145 "scan2.l"
 {
 						    commentInCode = false;
 						    *cptr++ = yytext[0]; *cptr++ = yytext[1];
@@ -975,52 +978,52 @@ YY_RULE_SETUP
 						}
 	YY_BREAK
 case YY_STATE_EOF(code):
-#line 152 "scan2.l"
+#line 155 "scan2.l"
 { yyerror("unterminated code starting at line %d", cLineNumber); BEGIN INITIAL; return codesym; }
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 153 "scan2.l"
+#line 156 "scan2.l"
 { clevel = 1; cptr = codeBlock; cLineNumber = lineNumber; BEGIN code; }
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 154 "scan2.l"
+#line 157 "scan2.l"
 { BEGIN comment; }
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 155 "scan2.l"
+#line 158 "scan2.l"
 { yyerror("unopened comment"); }
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 156 "scan2.l"
+#line 159 "scan2.l"
 { yyerror("unopened code block"); }
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 157 "scan2.l"
+#line 160 "scan2.l"
 { return (lparsym); }
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 158 "scan2.l"
+#line 161 "scan2.l"
 { return (rparsym); }
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 159 "scan2.l"
+#line 162 "scan2.l"
 { return (lbracketsym); }
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 160 "scan2.l"
+#line 163 "scan2.l"
 { return (rbracketsym); }
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 161 "scan2.l"
+#line 164 "scan2.l"
 {
 							int kVal = KeywordOrIdentifier(yytext);
 							if (kVal == identifiersym) yylval.string = strcpy(codeBlock, yytext);
@@ -1029,86 +1032,86 @@ YY_RULE_SETUP
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 166 "scan2.l"
+#line 169 "scan2.l"
 { return (numbersym); }
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 167 "scan2.l"
+#line 170 "scan2.l"
 { yylval.name = InsertString(yytext); return (stringsym); }
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 168 "scan2.l"
+#line 171 "scan2.l"
 { strcpy(codeBlock, yytext); return (outputsym); }
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 169 "scan2.l"
+#line 172 "scan2.l"
 { return (functionreturnsym); }
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 170 "scan2.l"
+#line 173 "scan2.l"
 { return (equalsym); }
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 171 "scan2.l"
+#line 174 "scan2.l"
 { return (colonsym); }
 	YY_BREAK
 case 26:
 YY_RULE_SETUP
-#line 172 "scan2.l"
+#line 175 "scan2.l"
 { return (semicolonsym); }
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 173 "scan2.l"
+#line 176 "scan2.l"
 { return (periodsym); }
 	YY_BREAK
 case 28:
 YY_RULE_SETUP
-#line 174 "scan2.l"
+#line 177 "scan2.l"
 { return (commasym); }
 	YY_BREAK
 case 29:
 YY_RULE_SETUP
-#line 175 "scan2.l"
+#line 178 "scan2.l"
 { return (starsym); }
 	YY_BREAK
 case 30:
 YY_RULE_SETUP
-#line 176 "scan2.l"
+#line 179 "scan2.l"
 { if (yytext[1] == '!') RetractProperty(yytext + 2); else AddProperty(yytext + 1); }
 	YY_BREAK
 case 31:
 YY_RULE_SETUP
-#line 177 "scan2.l"
+#line 180 "scan2.l"
 { return (singletoken); }
 	YY_BREAK
 case 32:
 YY_RULE_SETUP
-#line 178 "scan2.l"
+#line 181 "scan2.l"
 { nrBlanks++; }
 	YY_BREAK
 case 33:
 /* rule 33 can match eol */
 YY_RULE_SETUP
-#line 179 "scan2.l"
+#line 182 "scan2.l"
 { lineNumber++; nrBlanks++; }
 	YY_BREAK
 case 34:
 YY_RULE_SETUP
-#line 180 "scan2.l"
+#line 183 "scan2.l"
 { yyerror("unknown character: %c", yytext[0]); }
 	YY_BREAK
 case 35:
 YY_RULE_SETUP
-#line 181 "scan2.l"
+#line 184 "scan2.l"
 ECHO;
 	YY_BREAK
-#line 1112 "lex.yy.c"
+#line 1115 "lex.yy.c"
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(argument):
 	yyterminate();
@@ -2109,4 +2112,4 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 181 "scan2.l"
+#line 184 "scan2.l"
