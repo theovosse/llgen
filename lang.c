@@ -774,11 +774,11 @@ static void goLanguageAssignLastSymbolTo(FILE* f, int indent, Name name, Boolean
 Language goLanguage = {
 	"go",
 	goLanguageInit,
-    false,
+    true,
     "llerror",
     "",
     "syntax error after %s %.*s",
-    ", lastSymbol, bufferEnd, scanBuffer",
+    ", lastSymbol, bufferEnd, string(scanBuffer)",
     "",
     "nil",
     "string",

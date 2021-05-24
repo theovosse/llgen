@@ -61,7 +61,7 @@ export function setInputFileName(fn: string): void {
 }
 let scanBuffer = "";
 %{ignorebuffer
-export let ignoreBuffer = "";
+let ignoreBuffer = "";
 %}ignorebuffer
 let lastSymbol = "";
 export let lastSymbolPos = {line: 0, position: 0};

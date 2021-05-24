@@ -48,6 +48,9 @@ function llerror() {
 
 %}llerror
 var scanBuffer = "";
+%{ignorebuffer
+let ignoreBuffer = "";
+%}ignorebuffer
 var lastSymbol = "";
 var lastSymbolPos = {line: 0, position: 0};
 var bufferEnd = 0;
@@ -144,6 +147,11 @@ function nextSymbol()
     var ch;
     var lastNlPos = 0, nlPos = 0;
 
+%{ignorebuffer
+%{!keepignorebuffer
+    ignoreBuffer = "";
+%}!keepignorebuffer
+%}ignorebuffer
     /* Copy last recognized symbol into buffer and adjust positions */
     lastSymbol = scanBuffer.slice(0, bufferEnd);
     lastSymbolPos.line = llLineNumber;
@@ -192,7 +200,12 @@ function nextSymbol()
 %}!keywords
                 return;
             }
+%{ignorebuffer
+            ignoreBuffer += scanBuffer.substr(0, bufferEnd);
+%}ignorebuffer
+%{!ignorebuffer
             /* If nothing recognized, continue; no need to copy buffer */
+%}!ignorebuffer
             lastNlPos = nlPos = 0;
             while ((nlPos = scanBuffer.indexOf('\n', nlPos)) != -1 && nlPos < bufferEnd) {
                 llLineNumber++;

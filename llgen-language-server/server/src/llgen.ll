@@ -94,7 +94,7 @@ shift_sym = "SHIFT" KEYWORD identifier.
 on_sym = "ON" KEYWORD identifier.
 break_sym = "BREAK" KEYWORD identifier.
 error_sym = "ERROR" KEYWORD identifier.
-single_token = "[+\-/%&|\^\<\>~!?]|\+\+|--|\<\<|\>\>|&&|\|\||\.\.\.|((\<\<|\>\>|[+\-/%&|\^])=)".
+single_token = "[+\-*/%&|\^\<\>~!?]|\+\+|--|\<\<|\>\>|&&|\|\||\.\.\.|((\<\<|\>\>|[+\-/%&|\^])=)".
 IGNORE "[ \t\n\r]+".
 IGNORE "//.*".
 IGNORE "/\*([^*]|\*[^/])*\*/".

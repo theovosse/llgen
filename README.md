@@ -95,7 +95,7 @@ The C/C++ target also has the option for unicode input, but that doesn't work ve
 
 # IDE support
 
-There's also extensive support for editing in VSCode, but you'll have to build and install the language server yourself. It's in the folder llgen-language-server.
+There's also extensive support for editing in VSCode; there's a vsix file in the client folder.
 
 # About the code
 

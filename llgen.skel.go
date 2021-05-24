@@ -2,9 +2,14 @@
 %%package %P
 
 import (
+%{!stringinput
 	"bufio"
-	"fmt"
 	"os"
+%}!stringinput
+	"fmt"
+%{stringinput
+	"strings"
+%}stringinput
 )
 %initcode
 
@@ -25,7 +30,12 @@ type lLTokenSet *[llTokenSetSize]uint32
 %%var endOfInputSet = [llTokenSetSize]uint32{%E}
 
 var currSymbol lLTokenSet
+%{!stringinput
 var inputFile *bufio.Reader
+%}!stringinput
+%{stringinput
+var inputFile *strings.Reader
+%}stringinput
 var llLineNumber int = 1
 var llLinePosition int = 1
 var llNrCharactersRead uint32
@@ -229,11 +239,17 @@ func nextSymbol() {
 	currSymbol = &endOfInputSet
 }
 
-func getToken(token uint, set, follow lLTokenSet) {
-	var ltSet [llTokenSetSize]uint32
+func getToken(token uint, firstNext, follow lLTokenSet, firstNextEmpty bool) {
+    var ltSet lLTokenSet
 
-	uniteTokenSets(&ltSet, set, follow)
-	for currSymbol != &endOfInputSet && !memberTokenSet(token, currSymbol) && !tokenInCommon(currSymbol, &ltSet) {
+	if firstNextEmpty {
+		var ltSetStorage [llTokenSetSize]uint32
+		ltSet = &ltSetStorage
+		uniteTokenSets(ltSet, firstNext, follow)
+	} else {
+		ltSet = firstNext
+	}
+	for currSymbol != &endOfInputSet && !memberTokenSet(token, currSymbol) && !tokenInCommon(currSymbol, ltSet) {
 		nextSymbol()
 		if !memberTokenSet(0, currSymbol) {
 			llerror("token skipped: %s", lastSymbol)
@@ -250,8 +266,14 @@ func getToken(token uint, set, follow lLTokenSet) {
 
 %exitcode
 
+%{stringinput
+%%func Parse(str string, fName string, *S) {
+	inputFile = strings.NewReader(str)
+%}stringinput
+%{!stringinput
 %%func Parse(f \*os.File, fName string, *S) {
 	inputFile = bufio.NewReader(f)
+%}!stringinput
 	inputFileName = fName
 	llLineNumber = 1
 	llLinePosition = 1

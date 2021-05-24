@@ -66,9 +66,9 @@ type LLTokenSet = number[];
 
 type KeyWordList = {[keyword:string]: number}|undefined;
 
-const endOfInput = 29;
-const nrTokens = 29;
-const endOfInputSet = [0x20000000]; 
+const endOfInput = 32;
+const nrTokens = 32;
+const endOfInputSet = [0, 0x00000002]; 
 const llTokenSetSize = Math.floor((nrTokens + 30) / 31);
 let llLineNumber = 1;
 let llLinePosition = 1;
@@ -116,25 +116,25 @@ export let lastSymbolPos = {line: 0, position: 0};
 let bufferEnd = 0;
 let bufferFill = 0;
 let atEOF = false;
-let llTokenSet1: number[] = [0x00008000]; /* string */
-let llTokenSet2: number[] = [0x00002000]; /* feature_def */
-let llTokenSet3: number[] = [0x02000000]; /* single_token */
-let llTokenSet4: number[] = [0x00010000]; /* output */
-let llTokenSet5: number[] = [0x00000800]; /* assign */
-let llTokenSet6: number[] = [0x00004000]; /* number */
-let llTokenSet7: number[] = [0x00000001]; /* */
-let llTokenSet8: number[] = [0x00020000]; /* identifier */
-let llTokenSet9: number[] = [0x00000040]; /* right_brace */
-let llTokenSet10: number[] = [0x00000020]; /* left_brace */
-let llTokenSet11: number[] = [0x00000010]; /* right_bracket */
-let llTokenSet12: number[] = [0x00000008]; /* left_bracket */
-let llTokenSet13: number[] = [0x00001000]; /* is */
-let llTokenSet14: number[] = [0x00000400]; /* semicolon */
-let llTokenSet15: number[] = [0x00000200]; /* colon */
-let llTokenSet16: number[] = [0x00000100]; /* period */
-let llTokenSet17: number[] = [0x00000080]; /* comma */
-let llTokenSet18: number[] = [0x00000004]; /* right_parenthesis */
-let llTokenSet19: number[] = [0x00000002]; /* left_parenthesis */
+let llTokenSet1: number[] = [0x00008000, 0x00000000]; /* string */
+let llTokenSet2: number[] = [0x00002000, 0x00000000]; /* feature_def */
+let llTokenSet3: number[] = [0x10000000, 0x00000000]; /* single_token */
+let llTokenSet4: number[] = [0x00010000, 0x00000000]; /* output */
+let llTokenSet5: number[] = [0x00000800, 0x00000000]; /* assign */
+let llTokenSet6: number[] = [0x00004000, 0x00000000]; /* number */
+let llTokenSet7: number[] = [0x00000001, 0x00000000]; /* */
+let llTokenSet8: number[] = [0x00020000, 0x00000000]; /* identifier */
+let llTokenSet9: number[] = [0x00000040, 0x00000000]; /* right_brace */
+let llTokenSet10: number[] = [0x00000020, 0x00000000]; /* left_brace */
+let llTokenSet11: number[] = [0x00000010, 0x00000000]; /* right_bracket */
+let llTokenSet12: number[] = [0x00000008, 0x00000000]; /* left_bracket */
+let llTokenSet13: number[] = [0x00001000, 0x00000000]; /* is */
+let llTokenSet14: number[] = [0x00000400, 0x00000000]; /* semicolon */
+let llTokenSet15: number[] = [0x00000200, 0x00000000]; /* colon */
+let llTokenSet16: number[] = [0x00000100, 0x00000000]; /* period */
+let llTokenSet17: number[] = [0x00000080, 0x00000000]; /* comma */
+let llTokenSet18: number[] = [0x00000004, 0x00000000]; /* right_parenthesis */
+let llTokenSet19: number[] = [0x00000002, 0x00000000]; /* left_parenthesis */
 let tokenName: string[] = [
 	"IGNORE",
 	"left_parenthesis",
@@ -161,6 +161,9 @@ let tokenName: string[] = [
 	"subtoken_sym",
 	"ignore_sym",
 	"shift_sym",
+	"on_sym",
+	"break_sym",
+	"error_sym",
 	"single_token",
 	"@&^@#&^",
 	"@&^@#&^",
@@ -171,6 +174,7 @@ const scanTab = [
 /*   0 */ {
             '~': {destination:6,accept:llTokenSet3},
 		    '?': {destination:6,accept:llTokenSet3},
+		    '*': {destination:6,accept:llTokenSet3},
 		    '!': {destination:6,accept:llTokenSet3},
 		    '}': {destination:24,accept:llTokenSet9},
 		    '|': {destination:25,accept:llTokenSet3},
@@ -239,7 +243,6 @@ const scanTab = [
 		    '\x1e': {},
 		    '\x1f': {},
 		    '$': {},
-		    '*': {},
 		    '@': {},
 		    '\\': {},
 		    '`': {},
@@ -777,7 +780,10 @@ let keywordList: KeyWordList[] = [
 	undefined,
 	undefined,
 	undefined,
-	{"CHAIN": 18, "IGNORE": 23, "KEYWORD": 19, "OPTION": 21, "SEQUENCE": 20, "SHIFT": 24, "SUBTOKEN": 22},
+	{"BREAK": 26, "CHAIN": 18, "ERROR": 27, "IGNORE": 23, "KEYWORD": 19, "ON": 25, "OPTION": 21, "SEQUENCE": 20, "SHIFT": 24, "SUBTOKEN": 22},
+	undefined,
+	undefined,
+	undefined,
 	undefined,
 	undefined,
 	undefined,
@@ -965,53 +971,57 @@ export function tokenSetToString(set: LLTokenSet): string {
     return "{" + toSymbolList(set).join(",") + "}";
 }
 
-let llTokenSet20: number[] = [0x0203DF0A]; /* assign colon identifier is left_bracket left_parenthesis number output period semicolon single_token string */
-let llTokenSet21: number[] = [0x0203DF8E]; /* assign colon comma identifier is left_bracket left_parenthesis number output period right_parenthesis semicolon single_token string */
-let llTokenSet22: number[] = [0x00000080]; /* comma */
-let llTokenSet23: number[] = [0x00000000]; /* */
-let llTokenSet24: number[] = [0x01038022]; /* identifier left_brace left_parenthesis output shift_sym string */
-let llTokenSet25: number[] = [0x00000400]; /* semicolon */
-let llTokenSet26: number[] = [0x01038422]; /* identifier left_brace left_parenthesis output semicolon shift_sym string */
-let llTokenSet27: number[] = [0x0203DFEA]; /* assign colon comma identifier is left_brace left_bracket left_parenthesis number output period right_brace semicolon single_token string */
-let llTokenSet28: number[] = [0x0203DFAA]; /* assign colon comma identifier is left_brace left_bracket left_parenthesis number output period semicolon single_token string */
-let llTokenSet29: number[] = [0x0203DF00]; /* assign colon identifier is number output period semicolon single_token string */
-let llTokenSet30: number[] = [0x00000002]; /* left_parenthesis */
-let llTokenSet31: number[] = [0x0203DFAE]; /* assign colon comma identifier is left_brace left_bracket left_parenthesis number output period right_parenthesis semicolon single_token string */
-let llTokenSet32: number[] = [0x00000008]; /* left_bracket */
-let llTokenSet33: number[] = [0x0203DFBA]; /* assign colon comma identifier is left_brace left_bracket left_parenthesis number output period right_bracket semicolon single_token string */
-let llTokenSet34: number[] = [0x00000020]; /* left_brace */
-let llTokenSet35: number[] = [0x01028002]; /* identifier left_parenthesis shift_sym string */
-let llTokenSet36: number[] = [0x01000000]; /* shift_sym */
-let llTokenSet37: number[] = [0x00028002]; /* identifier left_parenthesis string */
-let llTokenSet38: number[] = [0x00340000]; /* chain_sym option_sym sequence_sym */
-let llTokenSet39: number[] = [0x00040000]; /* chain_sym */
-let llTokenSet40: number[] = [0x00200000]; /* option_sym */
-let llTokenSet41: number[] = [0x00100000]; /* sequence_sym */
-let llTokenSet42: number[] = [0x00010000]; /* output */
-let llTokenSet43: number[] = [0x00020000]; /* identifier */
-let llTokenSet44: number[] = [0x00001000]; /* is */
-let llTokenSet45: number[] = [0x00820000]; /* identifier ignore_sym */
-let llTokenSet46: number[] = [0x00822020]; /* feature_def identifier ignore_sym left_brace */
-let llTokenSet47: number[] = [0x00002000]; /* feature_def */
-let llTokenSet48: number[] = [0x02000000]; /* single_token */
-let llTokenSet49: number[] = [0x00000200]; /* colon */
-let llTokenSet50: number[] = [0x00000100]; /* period */
-let llTokenSet51: number[] = [0x00008000]; /* string */
-let llTokenSet52: number[] = [0x00004000]; /* number */
-let llTokenSet53: number[] = [0x00000800]; /* assign */
-let llTokenSet54: number[] = [0x00001A02]; /* assign colon is left_parenthesis */
-let llTokenSet55: number[] = [0x00000A02]; /* assign colon left_parenthesis */
-let llTokenSet56: number[] = [0x00000A00]; /* assign colon */
-let llTokenSet57: number[] = [0x01038522]; /* identifier left_brace left_parenthesis output period semicolon shift_sym string */
-let llTokenSet58: number[] = [0x00800000]; /* ignore_sym */
-let llTokenSet59: number[] = [0x00000802]; /* assign left_parenthesis */
-let llTokenSet60: number[] = [0x01038426]; /* identifier left_brace left_parenthesis output right_parenthesis semicolon shift_sym string */
-let llTokenSet61: number[] = [0x00000004]; /* right_parenthesis */
-let llTokenSet62: number[] = [0x00028000]; /* identifier string */
-let llTokenSet63: number[] = [0x00080000]; /* keyword_sym */
-let llTokenSet64: number[] = [0x0203DF9A]; /* assign colon comma identifier is left_bracket left_parenthesis number output period right_bracket semicolon single_token string */
-let llTokenSet65: number[] = [0x00000010]; /* right_bracket */
-let llTokenSet66: number[] = [0x0203DF8A]; /* assign colon comma identifier is left_bracket left_parenthesis number output period semicolon single_token string */
+let llTokenSet20: number[] = [0x1003DF0A, 0x00000000]; /* assign colon identifier is left_bracket left_parenthesis number output period semicolon single_token string */
+let llTokenSet21: number[] = [0x1003DF8E, 0x00000000]; /* assign colon comma identifier is left_bracket left_parenthesis number output period right_parenthesis semicolon single_token string */
+let llTokenSet22: number[] = [0x00000080, 0x00000000]; /* comma */
+let llTokenSet23: number[] = [0x00000000, 0x00000000]; /* */
+let llTokenSet24: number[] = [0x03038022, 0x00000000]; /* identifier left_brace left_parenthesis on_sym output shift_sym string */
+let llTokenSet25: number[] = [0x00000400, 0x00000000]; /* semicolon */
+let llTokenSet26: number[] = [0x03038422, 0x00000000]; /* identifier left_brace left_parenthesis on_sym output semicolon shift_sym string */
+let llTokenSet27: number[] = [0x1003DFEA, 0x00000000]; /* assign colon comma identifier is left_brace left_bracket left_parenthesis number output period right_brace semicolon single_token string */
+let llTokenSet28: number[] = [0x1003DFAA, 0x00000000]; /* assign colon comma identifier is left_brace left_bracket left_parenthesis number output period semicolon single_token string */
+let llTokenSet29: number[] = [0x1003DF00, 0x00000000]; /* assign colon identifier is number output period semicolon single_token string */
+let llTokenSet30: number[] = [0x00000002, 0x00000000]; /* left_parenthesis */
+let llTokenSet31: number[] = [0x1003DFAE, 0x00000000]; /* assign colon comma identifier is left_brace left_bracket left_parenthesis number output period right_parenthesis semicolon single_token string */
+let llTokenSet32: number[] = [0x00000008, 0x00000000]; /* left_bracket */
+let llTokenSet33: number[] = [0x1003DFBA, 0x00000000]; /* assign colon comma identifier is left_brace left_bracket left_parenthesis number output period right_bracket semicolon single_token string */
+let llTokenSet34: number[] = [0x00000020, 0x00000000]; /* left_brace */
+let llTokenSet35: number[] = [0x03028002, 0x00000000]; /* identifier left_parenthesis on_sym shift_sym string */
+let llTokenSet36: number[] = [0x01000000, 0x00000000]; /* shift_sym */
+let llTokenSet37: number[] = [0x02028002, 0x00000000]; /* identifier left_parenthesis on_sym string */
+let llTokenSet38: number[] = [0x00340000, 0x00000000]; /* chain_sym option_sym sequence_sym */
+let llTokenSet39: number[] = [0x00040000, 0x00000000]; /* chain_sym */
+let llTokenSet40: number[] = [0x00200000, 0x00000000]; /* option_sym */
+let llTokenSet41: number[] = [0x00100000, 0x00000000]; /* sequence_sym */
+let llTokenSet42: number[] = [0x00010000, 0x00000000]; /* output */
+let llTokenSet43: number[] = [0x00020000, 0x00000000]; /* identifier */
+let llTokenSet44: number[] = [0x00001000, 0x00000000]; /* is */
+let llTokenSet45: number[] = [0x00820000, 0x00000000]; /* identifier ignore_sym */
+let llTokenSet46: number[] = [0x00822020, 0x00000000]; /* feature_def identifier ignore_sym left_brace */
+let llTokenSet47: number[] = [0x00002000, 0x00000000]; /* feature_def */
+let llTokenSet48: number[] = [0x10000000, 0x00000000]; /* single_token */
+let llTokenSet49: number[] = [0x00000200, 0x00000000]; /* colon */
+let llTokenSet50: number[] = [0x00000100, 0x00000000]; /* period */
+let llTokenSet51: number[] = [0x00008000, 0x00000000]; /* string */
+let llTokenSet52: number[] = [0x00004000, 0x00000000]; /* number */
+let llTokenSet53: number[] = [0x00000800, 0x00000000]; /* assign */
+let llTokenSet54: number[] = [0x00001A02, 0x00000000]; /* assign colon is left_parenthesis */
+let llTokenSet55: number[] = [0x00000A02, 0x00000000]; /* assign colon left_parenthesis */
+let llTokenSet56: number[] = [0x00000A00, 0x00000000]; /* assign colon */
+let llTokenSet57: number[] = [0x03038522, 0x00000000]; /* identifier left_brace left_parenthesis on_sym output period semicolon shift_sym string */
+let llTokenSet58: number[] = [0x00800000, 0x00000000]; /* ignore_sym */
+let llTokenSet59: number[] = [0x00000802, 0x00000000]; /* assign left_parenthesis */
+let llTokenSet60: number[] = [0x03038426, 0x00000000]; /* identifier left_brace left_parenthesis on_sym output right_parenthesis semicolon shift_sym string */
+let llTokenSet61: number[] = [0x00000004, 0x00000000]; /* right_parenthesis */
+let llTokenSet62: number[] = [0x02000000, 0x00000000]; /* on_sym */
+let llTokenSet63: number[] = [0x00028000, 0x00000000]; /* identifier string */
+let llTokenSet64: number[] = [0x0C000000, 0x00000000]; /* break_sym error_sym */
+let llTokenSet65: number[] = [0x04000000, 0x00000000]; /* break_sym */
+let llTokenSet66: number[] = [0x08000000, 0x00000000]; /* error_sym */
+let llTokenSet67: number[] = [0x00080000, 0x00000000]; /* keyword_sym */
+let llTokenSet68: number[] = [0x1003DF9A, 0x00000000]; /* assign colon comma identifier is left_bracket left_parenthesis number output period right_bracket semicolon single_token string */
+let llTokenSet69: number[] = [0x00000010, 0x00000000]; /* right_bracket */
+let llTokenSet70: number[] = [0x1003DF8A, 0x00000000]; /* assign colon comma identifier is left_bracket left_parenthesis number output period semicolon single_token string */
 
 
 function actual_parameters(follow: LLTokenSet): void {
@@ -1188,7 +1198,7 @@ function llgen_file(follow: LLTokenSet): void {
 
 function non_bracket_symbol(follow: LLTokenSet): void {
 	if (tokenInCommon(currSymbol, llTokenSet48)) {
-		getToken(25/*single_token*/, llTokenSet23, follow, true);
+		getToken(28/*single_token*/, llTokenSet23, follow, true);
 	} else if (tokenInCommon(currSymbol, llTokenSet43)) {
 		getToken(17/*identifier*/, llTokenSet23, follow, true);
 	} else if (tokenInCommon(currSymbol, llTokenSet49)) {
@@ -1263,6 +1273,25 @@ function single_element(follow: LLTokenSet): void {
 		getToken(1/*left_parenthesis*/, llTokenSet60, llTokenSet60, false);
 		alternatives(llTokenSet61);
 		getToken(2/*right_parenthesis*/, llTokenSet23, follow, true);
+	} else if (tokenInCommon(currSymbol, llTokenSet62)) {
+		getToken(25/*on_sym*/, llTokenSet63, llTokenSet63, false);
+		if (tokenInCommon(currSymbol, llTokenSet43)) {
+			getToken(17/*identifier*/, llTokenSet64, uniteTokenSets(follow, llTokenSet64), true);
+			
+			usageFun(SymbolType.unknown, lastSymbol, lastSymbolPos.line, lastSymbolPos.position);
+		} else if (tokenInCommon(currSymbol, llTokenSet51)) {
+			getToken(15/*string*/, llTokenSet64, uniteTokenSets(follow, llTokenSet64), true);
+		} else {
+			llerror("syntax error after %s %.*s", lastSymbol, bufferEnd, scanBuffer);
+		}
+		if (tokenInCommon(currSymbol, llTokenSet65)) {
+			getToken(26/*break_sym*/, llTokenSet23, follow, true);
+		} else if (tokenInCommon(currSymbol, llTokenSet66)) {
+			getToken(27/*error_sym*/, llTokenSet51, llTokenSet51, false);
+			getToken(15/*string*/, llTokenSet23, follow, true);
+		} else {
+			llerror("syntax error after %s %.*s", lastSymbol, bufferEnd, scanBuffer);
+		}
 	} else {
 		llerror("single_element");
 	}
@@ -1270,10 +1299,10 @@ function single_element(follow: LLTokenSet): void {
 
 
 function token_declaration(follow: LLTokenSet): void {
-	getToken(12/*is*/, llTokenSet62, llTokenSet62, false);
+	getToken(12/*is*/, llTokenSet63, llTokenSet63, false);
 	if (tokenInCommon(currSymbol, llTokenSet51)) {
-		getToken(15/*string*/, llTokenSet63, uniteTokenSets(follow, llTokenSet63), true);
-		if (tokenInCommon(currSymbol, llTokenSet63)) {
+		getToken(15/*string*/, llTokenSet67, uniteTokenSets(follow, llTokenSet67), true);
+		if (tokenInCommon(currSymbol, llTokenSet67)) {
 			getToken(19/*keyword_sym*/, llTokenSet43, llTokenSet43, false);
 			getToken(17/*identifier*/, llTokenSet23, follow, true);
 		}
@@ -1296,8 +1325,8 @@ function wildcard(follow: LLTokenSet): void {
 		wildcards(llTokenSet61);
 		getToken(2/*right_parenthesis*/, llTokenSet23, follow, true);
 	} else if (tokenInCommon(currSymbol, llTokenSet32)) {
-		getToken(3/*left_bracket*/, llTokenSet64, llTokenSet64, false);
-		wildcards(llTokenSet65);
+		getToken(3/*left_bracket*/, llTokenSet68, llTokenSet68, false);
+		wildcards(llTokenSet69);
 		getToken(4/*right_bracket*/, llTokenSet23, follow, true);
 	} else {
 		llerror("wildcard");
@@ -1306,17 +1335,17 @@ function wildcard(follow: LLTokenSet): void {
 
 
 function wildcards(follow: LLTokenSet): void {
-	if (tokenInCommon(currSymbol, llTokenSet66)) {
+	if (tokenInCommon(currSymbol, llTokenSet70)) {
 		do {
 			if (tokenInCommon(currSymbol, llTokenSet20)) {
-				wildcard(uniteTokenSets(follow, llTokenSet66));
+				wildcard(uniteTokenSets(follow, llTokenSet70));
 			} else if (tokenInCommon(currSymbol, llTokenSet22)) {
-				getToken(7/*comma*/, llTokenSet66, uniteTokenSets(follow, llTokenSet66), true);
+				getToken(7/*comma*/, llTokenSet70, uniteTokenSets(follow, llTokenSet70), true);
 			} else {
 				llerror("syntax error after %s %.*s", lastSymbol, bufferEnd, scanBuffer);
 			}
-			waitForToken(uniteTokenSets(llTokenSet66, follow), follow);
-		} while (tokenInCommon(currSymbol, llTokenSet66));
+			waitForToken(uniteTokenSets(llTokenSet70, follow), follow);
+		} while (tokenInCommon(currSymbol, llTokenSet70));
 	}
 }
 
