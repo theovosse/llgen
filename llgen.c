@@ -3,14 +3,11 @@
 #include <string.h>
 #include <stdarg.h>
 #include <ctype.h>
-#ifdef unix
+#ifdef UNIX
 #define DIR_SEP_CHAR '/'
 #endif
-#ifdef windows
+#ifdef WINDOWS
 #define DIR_SEP_CHAR '\\'
-#endif
-#ifdef __MACH__
-#define DIR_SEP_CHAR '/'
 #endif
 #ifndef DIR_SEP_CHAR
 #error "unknown platform"
